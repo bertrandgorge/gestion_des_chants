@@ -125,7 +125,8 @@ CREATE TABLE IF NOT EXISTS import_journal (
     titre      VARCHAR(255) DEFAULT NULL,         -- données parsées (passe 2), utilisées à la passe 3
     code       VARCHAR(60)  DEFAULT NULL,
     auteur     VARCHAR(190) DEFAULT NULL,
-    type       VARCHAR(60)  DEFAULT NULL,
+    type       VARCHAR(60)  DEFAULT NULL,         -- slug App\SectionTypes::DEFAUT (entree, communion…)
+    categorie  VARCHAR(255) DEFAULT NULL,         -- « type » brut lu sur le site (re-classification hors-ligne)
     nom        VARCHAR(120) DEFAULT NULL,
     chant      LONGTEXT     DEFAULT NULL,
     traite_le  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,

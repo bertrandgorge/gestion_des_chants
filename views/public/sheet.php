@@ -6,8 +6,8 @@
     <?php if (!empty($paroisse['logo'])): ?>
         <img src="/<?= e($paroisse['logo']) ?>" alt="" class="feuille-logo">
     <?php endif; ?>
-    <div class="feuille-paroisse"><?= e($paroisse['nom']) ?></div>
     <div class="feuille-clocher"><?= e($feuille['clocher_nom']) ?></div>
+    <div class="feuille-paroisse"><?= e($paroisse['nom']) ?></div>
     <h1 class="feuille-titre"><?= e(format_date_fr($feuille['date_heure'])) ?></h1>
     <?php if ($feuille['semaine']): ?>
         <div class="feuille-semaine"><?= e($feuille['semaine']) ?></div>

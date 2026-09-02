@@ -2,10 +2,171 @@
 // Compilée vers ../css/app.css par « npm run css » (fichier commité).
 
 // --- Personnalisation Bootstrap (avant l'import) ---------------------
-$font-family-sans-serif: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-$primary: #5b4b8a; // violet liturgique discret
+$font-family-sans-serif: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+// Couleurs
+$primary:              #5d4b9c;  // violet liturgique, un peu plus franc
+$body-color:           #21242b;
+$body-secondary-color: #5b6472;
+$body-bg:              #f5f6f8;  // fond de page légèrement teinté (cartes en blanc)
+$body-tertiary-bg:     #eceef2;
+$border-color:         #e3e4ea;
+$emphasis-color:       #14161a;
+
+// Rayons & ombres
+$border-radius:      .625rem;
+$border-radius-sm:   .375rem;
+$border-radius-lg:   .875rem;
+$border-radius-xl:   1.25rem;
+$box-shadow-sm:      0 1px 2px rgba(20, 22, 26, .06);
+$box-shadow:         0 1px 3px rgba(20, 22, 26, .09), 0 10px 28px rgba(20, 22, 26, .06);
+
+// Typographie
+$line-height-base:      1.55;
+$headings-font-weight:  650;
+$headings-line-height:  1.25;
+$headings-color:        #16181d;
+$link-decoration:       none;
+$link-hover-decoration: underline;
+$small-font-size:       .8125rem;
+
+// Cartes
+$card-border-color:  $border-color;
+$card-border-radius: $border-radius-lg;
+$card-box-shadow:    0 1px 2px rgba(20, 22, 26, .05), 0 4px 14px rgba(20, 22, 26, .06);
+$card-spacer-y:      1.375rem;
+$card-spacer-x:      1.375rem;
+$card-cap-bg:        transparent;
+
+// Champs de formulaire
+$input-bg:                 #fff;
+$input-border-color:       #d5d7df;
+$input-focus-border-color: #a99fd0;
+$input-border-radius:      $border-radius-sm;
+$input-padding-y:          .5rem;
+$input-btn-focus-color-opacity: .2;
+$form-label-font-weight:   500;
+$form-label-margin-bottom: .375rem;
+$form-text-color:          $body-secondary-color;
+
+// Boutons
+$btn-font-weight:   500;
+$btn-border-radius: $border-radius-sm;
+$btn-padding-x:     1rem;
+
+// Groupes de liste
+$list-group-border-color:    $border-color;
+$list-group-border-radius:   $border-radius-lg;
+$list-group-item-padding-y:  1rem;
+$list-group-item-padding-x:  1.125rem;
+$list-group-action-hover-bg: #f1f1f6;
+
+// Divers
+$badge-font-weight:   600;
+$badge-padding-y:     .35em;
+$badge-padding-x:     .6em;
+$nav-pills-border-radius: 2rem;
 
 @import "bootstrap/scss/bootstrap";
+
+// --- Habillage général (interface chantre & administration) ----------
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+    letter-spacing: -.012em;
+}
+
+.navbar {
+    // Barre supérieure blanche, plutôt qu'un gris terne.
+    background-color: #fff !important;
+    border-bottom-color: $border-color;
+    box-shadow: 0 1px 2px rgba(20, 22, 26, .04);
+
+    .navbar-brand { font-weight: 700; letter-spacing: -.015em; }
+}
+
+.card {
+    border-color: $border-color;
+    box-shadow: $card-box-shadow; // Bootstrap ne pose pas d'ombre sans $enable-shadows.
+}
+
+// Onglets d'administration : pills plus douces.
+.nav-pills {
+    --bs-nav-pills-link-active-bg: #{$primary};
+
+    .nav-link {
+        color: var(--bs-body-color);
+        font-weight: 500;
+        padding: .4rem .95rem;
+
+        &:not(.active):hover { background-color: #eceef2; }
+    }
+}
+
+.btn { --bs-btn-font-weight: 500; }
+
+.btn-primary {
+    --bs-btn-box-shadow: 0 1px 2px rgba(20, 22, 26, .12);
+    box-shadow: var(--bs-btn-box-shadow);
+}
+
+.form-control,
+.form-select {
+    &:focus { box-shadow: 0 0 0 .2rem rgba($primary, .18); }
+}
+
+// Cartes-liens (liste des feuilles) : survol et focus plus lisibles.
+.list-group-item-action {
+    transition: background-color .12s ease;
+
+    &:focus-visible {
+        outline: 2px solid rgba($primary, .5);
+        outline-offset: -2px;
+    }
+}
+
+.badge { letter-spacing: .01em; }
+
+// Listes principales de l'admin (feuilles, sections) : présentées comme
+// des cartes posées sur le fond teinté. On épargne les listes du site
+// paroissien (.feuille-choix) et le panneau d'autocomplétion.
+body:not(.public-body) .list-group:not(.feuille-choix):not(.autocomplete-panel) {
+    border-radius: $border-radius-lg;
+    box-shadow: $card-box-shadow;
+
+    > .list-group-item:first-child { border-top-left-radius: inherit; border-top-right-radius: inherit; }
+    > .list-group-item:last-child { border-bottom-left-radius: inherit; border-bottom-right-radius: inherit; }
+}
+
+// Tableaux d'administration : surface type carte, en-têtes discrets.
+.table-responsive {
+    background: #fff;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-lg;
+    box-shadow: $card-box-shadow;
+}
+
+.table {
+    --bs-table-bg: transparent;
+    margin-bottom: 0;
+
+    > :not(caption) > * > * { padding: .85rem 1rem; }
+
+    thead th {
+        font-size: .75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: var(--bs-secondary-color);
+        border-bottom-color: $border-color;
+    }
+
+    tbody tr:last-child > * { border-bottom-width: 0; }
+}
 
 // --- Icônes ------------------------------------------------------------
 // Sous-ensemble de Bootstrap Icons, police auto-hébergée (copiée dans
@@ -44,6 +205,7 @@ $bi-glyphes: (
     "gear-fill":          "\f3e2",
     "grip-vertical":      "\f3fe",
     "plus-lg":            "\f64d",
+    "projector":          "\f6ac",
     "trash3":             "\f78b",
     "x-lg":               "\f659",
 );
@@ -94,10 +256,11 @@ $liturgie-couleurs: (
 .auth-card {
     width: 100%;
     max-width: 400px;
-    background: var(--bs-body-bg);
-    padding: 2rem;
-    border-radius: 1rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, .1), 0 8px 24px rgba(0, 0, 0, .06);
+    background: #fff;
+    padding: 2.25rem;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-xl;
+    box-shadow: $box-shadow;
 }
 
 // --- Interface chantre --------------------------------------------
@@ -158,8 +321,14 @@ $liturgie-couleurs: (
 
 // --- Interface paroissien (sobre, mobile first) -------------------
 .public-body {
-    background: var(--bs-body-bg);
+    // Thème clair : blanc pur (indépendant du fond teinté de l'admin).
+    // Thème sombre : on suit le fond de Bootstrap.
+    background: #fff;
     color: var(--bs-body-color);
+}
+
+[data-bs-theme="dark"] .public-body {
+    background: var(--bs-body-bg);
 }
 
 .public-toolbar {
@@ -189,8 +358,8 @@ $liturgie-couleurs: (
     margin-bottom: 1.5rem;
 
     .feuille-logo { max-height: 72px; margin-bottom: .5rem; }
-    .feuille-paroisse { font-weight: 600; }
-    .feuille-clocher { color: var(--bs-secondary-color); }
+    .feuille-paroisse {color: var(--bs-secondary-color);}
+    .feuille-clocher { font-weight: 600;  }
     .feuille-date { color: var(--bs-secondary-color); text-transform: capitalize; }
     .feuille-titre { font-size: 1.3em; margin-top: .6rem; }
 }
@@ -224,3 +393,77 @@ $liturgie-couleurs: (
 }
 
 .feuille-choix .list-group-item { text-transform: capitalize; }
+
+// --- Mode présentation (projection, blanc sur noir) ---------------
+.presentation { display: none; }
+
+body.presentation-active {
+    overflow: hidden;
+
+    .public-toolbar,
+    .public-main { display: none; }
+
+    .presentation {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        background: #000;
+        color: #fff;
+        cursor: none;
+    }
+}
+
+.presentation { --pres-scale: 1; }
+
+.pres-slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4vh;
+    padding: 12vh 8vw;
+    text-align: center;
+
+    &.is-current { display: flex; }
+}
+
+.presentation.is-black .pres-slide { visibility: hidden; }
+
+.pres-nom {
+    position: absolute;
+    top: 4vh;
+    left: 0;
+    right: 0;
+    font-size: 2.4vh;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    opacity: .45;
+}
+
+.pres-corps {
+    display: flex;
+    flex-direction: column;
+    gap: 4vh;
+    max-width: 90vw;
+}
+
+.pres-bloc { line-height: 1.35; }
+.pres-couplet,
+.pres-refrain { font-size: calc(5vh * var(--pres-scale)); }
+.pres-refrain { font-weight: 700; }
+.pres-acclamation { font-size: calc(4vh * var(--pres-scale)); font-weight: 700; }
+.pres-titre { font-size: calc(4.4vh * var(--pres-scale)); font-style: italic; }
+.pres-reference { font-size: calc(2.8vh * var(--pres-scale)); opacity: .55; }
+
+.pres-progress {
+    position: absolute;
+    right: 3vw;
+    bottom: 4vh;
+    font-size: 2vh;
+    opacity: .35;
+}
+
+.presentation.is-black .pres-progress { visibility: hidden; }

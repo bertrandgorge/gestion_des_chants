@@ -219,18 +219,137 @@ if (!function_exists('clean_html')) {
 }
 
 if (!function_exists('count_couplets')) {
-    /** Nombre de parties (couplets + refrains) d'un texte de chant. */
-    function count_couplets(?string $texte): int
+    /**
+     * Nombre de parties d'un texte de chant.
+     *
+     * @param bool $inclureRefrain false pour ne compter que les couplets
+     *                             (parties ne commençant pas par « R/ » / « R. »).
+     */
+    function count_couplets(?string $texte, bool $inclureRefrain = true): int
     {
         $texte = trim((string) str_replace("\r\n", "\n", (string) $texte));
         if ($texte === '') {
             return 0;
         }
 
-        return count(array_filter(
+        $parts = array_filter(
             preg_split('/\n{2,}/', $texte) ?: [],
             static fn ($p) => trim($p) !== ''
-        ));
+        );
+
+        if (!$inclureRefrain) {
+            $parts = array_filter(
+                $parts,
+                static fn ($p) => !preg_match('/^\s*R\s*[\/.]/u', $p)
+            );
+        }
+
+        return count($parts);
+    }
+}
+
+if (!function_exists('presentation_slides')) {
+    /**
+     * Découpe une feuille de messe en « diapositives » pour le mode présentation.
+     *
+     * - Chants (et ordinaire, psaume, prière chantée) : une diapo par couplet,
+     *   avec le refrain (« R/ ») répété au-dessus de chaque couplet. Les chants
+     *   sans couplet tiennent sur une seule diapo.
+     * - Lectures / évangile : une seule diapo avec le titre (et l'acclamation
+     *   pour l'évangile), jamais le texte intégral.
+     *
+     * Chaque diapo : ['nom' => string, 'blocs' => [['type' => string, 'texte' => string], …],
+     * 'couplet' => ?int, 'couplets' => ?int]. « couplet »/« couplets » ne sont
+     * renseignés que pour les diapos correspondant à un couplet de chant.
+     * Types de blocs : refrain, couplet, acclamation, titre, reference.
+     *
+     * @param array<int, array<string, mixed>> $sections
+     * @return array<int, array{nom: string, blocs: array<int, array{type: string, texte: string}>, couplet: ?int, couplets: ?int}>
+     */
+    function presentation_slides(array $sections): array
+    {
+        $slides = [];
+
+        foreach ($sections as $s) {
+            $comportement = \App\SectionTypes::comportement((string) ($s['type'] ?? ''));
+            $nom = (string) ($s['nom'] ?? '');
+
+            if (in_array($comportement, ['lecture', 'evangile'], true)) {
+                $blocs = [];
+                if ($comportement === 'evangile') {
+                    $accl = trim((string) preg_replace('/\s+/', ' ', strip_tags((string) ($s['acclamation'] ?? ''))));
+                    if ($accl !== '') {
+                        $blocs[] = ['type' => 'acclamation', 'texte' => $accl];
+                    }
+                }
+                $titre = strip_guillemets((string) ($s['titre'] ?? ''));
+                if ($titre !== '') {
+                    $blocs[] = ['type' => 'titre', 'texte' => "«\u{00A0}" . $titre . "\u{00A0}»"];
+                }
+                $ref = trim((string) ($s['reference'] ?? ''));
+                if ($ref !== '') {
+                    $blocs[] = ['type' => 'reference', 'texte' => $ref];
+                }
+                if ($blocs !== []) {
+                    $slides[] = ['nom' => $nom, 'blocs' => $blocs, 'couplet' => null, 'couplets' => null];
+                }
+
+                continue;
+            }
+
+            $texte = trim((string) str_replace("\r\n", "\n", (string) ($s['chant'] ?? '')));
+            if ($texte === '') {
+                continue;
+            }
+
+            $parts = array_values(array_filter(
+                array_map('trim', preg_split('/\n{2,}/', $texte) ?: []),
+                static fn ($p) => $p !== ''
+            ));
+
+            $refrain = null;
+            $couplets = [];
+            foreach ($parts as $part) {
+                if ($refrain === null && preg_match('/^\s*R\s*[\/.]/u', $part)) {
+                    $refrain = $part;
+                } else {
+                    $couplets[] = $part;
+                }
+            }
+
+            if ($couplets === []) {
+                $slides[] = [
+                    'nom' => $nom,
+                    'blocs' => array_map(
+                        static fn ($p) => ['type' => 'couplet', 'texte' => $p],
+                        $parts
+                    ),
+                    'couplet' => null,
+                    'couplets' => null,
+                ];
+
+                continue;
+            }
+
+            // Le décompte « couplet n/m » n'a de sens qu'à partir de deux couplets.
+            $total = count($couplets);
+            $decompte = $total > 1;
+            foreach ($couplets as $i => $c) {
+                $blocs = [];
+                if ($refrain !== null) {
+                    $blocs[] = ['type' => 'refrain', 'texte' => $refrain];
+                }
+                $blocs[] = ['type' => 'couplet', 'texte' => $c];
+                $slides[] = [
+                    'nom' => $nom,
+                    'blocs' => $blocs,
+                    'couplet' => $decompte ? $i + 1 : null,
+                    'couplets' => $decompte ? $total : null,
+                ];
+            }
+        }
+
+        return $slides;
     }
 }
 

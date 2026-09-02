@@ -95,8 +95,8 @@ final class ChantController
 
         $data = [];
         $champsParComportement = [
-            'chant'     => ['titre', 'auteur', 'code', 'chant'],
-            'ordinaire' => ['titre', 'auteur', 'code', 'chant'],
+            'chant'     => ['titre', 'auteur', 'code', 'chant', 'url'],
+            'ordinaire' => ['titre', 'auteur', 'code', 'chant', 'url'],
             'lecture'   => ['titre', 'reference', 'introduction', 'contenu'],
             'psaume'    => ['titre', 'reference', 'chant'],
             'evangile'  => ['acclamation', 'introduction', 'reference', 'contenu'],
@@ -104,6 +104,9 @@ final class ChantController
         ];
         foreach ($champsParComportement[$comportement] ?? ['titre', 'chant'] as $champ) {
             $data[$champ] = (string) ($_POST[$champ] ?? '');
+        }
+        if (array_key_exists('chant', $data)) {
+            $data['nb_couplets'] = count_couplets($data['chant'], false);
         }
 
         Chant::update((int) $section['id'], $data);

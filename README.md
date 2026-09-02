@@ -51,6 +51,49 @@ docker compose exec app vendor/bin/phpunit
 | `views/` | gabarits PHP (`layout/`, `auth/`, `paroisse/`, `feuilles/`, `chant/`, `public/`, `emails/`) |
 | `db/` | `schema.sql` + `migrations/*.sql` |
 | `bin/migrate.php` | applique le schéma et les migrations (idempotent) |
+| `bin/import_chantonseneglise.php` | importe les chants de chantonseneglise.fr dans la base (voir ci-dessous) |
+
+### Import de chants (préremplissage)
+
+Les scripts `bin/import_*.php` récupèrent des chants sur des sites de paroles et
+créent des fiches « de catalogue » dans la table `chants` : `feuille_id = NULL`,
+colonne `url` renseignée (fiche source / partitions, affichée **côté chantre
+uniquement**). Ces chants alimentent l'autocomplétion de l'éditeur de feuille
+(la version avec le plus de couplets est proposée en priorité, `chants.nb_couplets`).
+
+Le site source étant lent, l'import se fait en **trois passes** suivies dans
+`import_journal`, toutes relançables (une exécution sans `--phase` les enchaîne) :
+
+1. `enum` — référence tous les chants du catalogue (`a-importer`), sans toucher aux fiches ;
+2. `fetch` — télécharge chaque fiche → `avec-paroles` / `sans-paroles` ;
+3. `import` — crée les fiches `chants` à partir des données récupérées (aucune requête).
+
+Le `type` est toujours un slug de `App\SectionTypes::DEFAUT` (`entree`, `communion`,
+`psaume`, `envoi`…), déduit du libellé du site — `entree` par défaut. La catégorie
+brute est mémorisée : `--reclassify` recalcule `type`/`nom` hors-ligne après un
+ajustement du mapping.
+
+```bash
+# import complet (long : plusieurs milliers de fiches, ~2 s par requête)
+docker compose exec app php bin/import_chantonseneglise.php
+
+# reprendre / fractionner la passe de téléchargement
+docker compose exec app php bin/import_chantonseneglise.php --phase=fetch --limit=500
+
+# test : lettre A uniquement
+docker compose exec app php bin/import_chantonseneglise.php --letters=A
+```
+
+Relançable : chaque passe reprend où elle s'était arrêtée (`--help` pour les options,
+`--refresh` pour tout recharger).
+
+Les paroles sont remises au format de l'application (`R/` pour le refrain, `1.`,
+`2.`… pour les couplets, ligne vide entre les parties). Pour re-formater des
+fiches déjà importées sans retélécharger :
+
+```bash
+docker compose exec app php bin/import_chantonseneglise.php --reformat
+```
 
 ### URLs
 

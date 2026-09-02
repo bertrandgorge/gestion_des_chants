@@ -8,8 +8,8 @@ use App\Database;
 
 final class Chant
 {
-    /** Colonnes éditables d'une section. */
-    public const FIELDS = ['titre', 'code', 'auteur', 'chant', 'introduction', 'contenu', 'acclamation', 'reference'];
+    /** Colonnes recopiées d'une section à l'autre (duplication de feuille). */
+    public const FIELDS = ['titre', 'code', 'auteur', 'chant', 'nb_couplets', 'introduction', 'contenu', 'acclamation', 'reference', 'url'];
 
     /** @return array<int,array<string,mixed>> */
     public static function forFeuille(int $feuilleId): array
@@ -65,13 +65,18 @@ final class Chant
      * Recherche dans l'historique des chants d'une paroisse (feuilles passées).
      * Regroupe par (titre, code) et conserve la version avec le plus de couplets.
      *
+     * Sources : les feuilles passées de la paroisse (prioritaires) et les chants
+     * de catalogue importés (feuille_id NULL, url renseignée). Le champ « url »
+     * n'est exposé qu'ici, pour l'interface chantre.
+     *
      * @return array<int,array<string,mixed>>
      */
     public static function historique(int $paroisseId, string $q, ?string $type = null): array
     {
         $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $q) . '%';
-        $rows = Database::all(
-            "SELECT ch.titre, ch.code, ch.auteur, ch.chant, ch.type, ch.feuille_id, f.date_heure
+
+        $historique = Database::all(
+            "SELECT ch.titre, ch.code, ch.auteur, ch.chant, ch.nb_couplets, ch.type, ch.feuille_id
              FROM chants ch
              JOIN feuilles_chant f ON f.id = ch.feuille_id
              JOIN clochers c ON c.id = f.clocher_id
@@ -84,22 +89,45 @@ final class Chant
             [$paroisseId, $like, $like]
         );
 
+        $catalogue = Database::all(
+            "SELECT ch.titre, ch.code, ch.auteur, ch.chant, ch.nb_couplets, ch.type, ch.url
+             FROM chants ch
+             WHERE ch.feuille_id IS NULL AND ch.url IS NOT NULL
+               AND ch.chant IS NOT NULL AND ch.chant <> ''
+               AND (ch.titre LIKE ? OR ch.code LIKE ?)
+             ORDER BY ch.titre ASC
+             LIMIT 300",
+            [$like, $like]
+        );
+
         $groups = [];
         $typesByKey = [];
-        foreach ($rows as $row) {
-            $key = mb_strtolower(trim((string) $row['titre'])) . '|' . mb_strtolower(trim((string) $row['code']));
+        foreach ([...$historique, ...$catalogue] as $row) {
+            $titre = mb_strtolower(trim((string) $row['titre']));
+            $code  = mb_strtolower(trim((string) $row['code']));
+            // À défaut de code (fréquent pour le catalogue), l'auteur distingue
+            // deux chants homonymes.
+            $key = $code !== ''
+                ? $titre . '|' . $code
+                : $titre . '|~' . mb_strtolower(trim((string) $row['auteur']));
             $typesByKey[$key][$row['type']] = true;
 
-            $couplets = count_couplets($row['chant']);
+            // Version la plus complète : on privilégie le plus de couplets (hors refrain).
+            $couplets = isset($row['nb_couplets']) && $row['nb_couplets'] !== null
+                ? (int) $row['nb_couplets']
+                : count_couplets($row['chant'], false);
             if (!isset($groups[$key]) || $couplets > $groups[$key]['_couplets']) {
                 $groups[$key] = [
                     'titre'      => $row['titre'],
                     'code'       => $row['code'],
                     'auteur'     => $row['auteur'],
                     'chant'      => $row['chant'],
-                    'feuille_id' => (int) $row['feuille_id'],
+                    'feuille_id' => isset($row['feuille_id']) ? (int) $row['feuille_id'] : null,
+                    'url'        => $groups[$key]['url'] ?? ($row['url'] ?? null),
                     '_couplets'  => $couplets,
                 ];
+            } elseif (($row['url'] ?? null) !== null && ($groups[$key]['url'] ?? null) === null) {
+                $groups[$key]['url'] = $row['url'];
             }
         }
 

@@ -45,5 +45,9 @@ final class RenderChantTest extends TestCase
     {
         $this->assertSame(0, count_couplets(''));
         $this->assertSame(3, count_couplets("R/ a\n\n1. b\n\n2. c"));
+        // Hors refrain : ne compte que les couplets.
+        $this->assertSame(2, count_couplets("R/ a\n\n1. b\n\n2. c", false));
+        $this->assertSame(2, count_couplets("R. a\n\n1. b\n\n2. c", false));
+        $this->assertSame(1, count_couplets("Un seul couplet sans refrain", false));
     }
 }

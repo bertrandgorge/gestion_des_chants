@@ -29,10 +29,16 @@ $bsTheme = $theme === 'sombre' ? 'dark' : ($theme === 'clair' ? 'light' : null);
     <button type="button" class="btn btn-sm btn-outline-secondary" data-font="-" aria-label="Réduire le texte">A&minus;</button>
     <button type="button" class="btn btn-sm btn-outline-secondary" data-font="+" aria-label="Agrandir le texte">A+</button>
     <button type="button" class="btn btn-sm btn-outline-secondary" data-theme-toggle aria-label="Changer de thème"><i class="bi bi-circle-half"></i></button>
+    <?php if (!empty($presentation) && !empty($sections)): ?>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-presentation aria-label="Mode présentation" title="Mode présentation"><i class="bi bi-projector"></i></button>
+    <?php endif; ?>
 </div>
 <main class="public-main">
     <?= $content ?>
 </main>
+<?php if (!empty($presentation) && !empty($sections)): ?>
+    <?php require APP_ROOT . '/views/public/_presentation.php'; ?>
+<?php endif; ?>
 <script src="/assets/js/viewer.js"></script>
 </body>
 </html>

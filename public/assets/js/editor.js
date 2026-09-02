@@ -132,6 +132,15 @@
             });
         }
 
+        function setChantUrl(url) {
+            var field = form.querySelector('[data-url-field]');
+            if (field) field.value = url || '';
+            var display = form.querySelector('[data-url-display]');
+            var link = form.querySelector('[data-url-link]');
+            if (link) link.href = url || '';
+            if (display) display.classList.toggle('d-none', !url);
+        }
+
         var clearBtn = form.querySelector('[data-clear-chant]');
         if (clearBtn) {
             clearBtn.addEventListener('click', function () {
@@ -139,6 +148,7 @@
                     var f = form.querySelector('[name="' + name + '"]');
                     if (f) f.value = '';
                 });
+                setChantUrl('');
                 if (preview) preview.innerHTML = '';
                 var t = form.querySelector('[name="titre"]');
                 if (t) t.focus();
@@ -179,6 +189,9 @@
                             var badges = (item.types || []).map(function (t) {
                                 return '<span class="badge text-bg-light border ms-1">' + escapeHtml(t) + '</span>';
                             }).join('');
+                            if (item.url) {
+                                badges += '<span class="badge text-bg-light border ms-1"><i class="bi bi-link-45deg"></i> partition</span>';
+                            }
                             a.innerHTML = '<span class="fw-semibold">' + escapeHtml(item.titre || '(sans titre)') + '</span>'
                                 + (item.code ? ' <span class="text-body-secondary">' + escapeHtml(item.code) + '</span>' : '')
                                 + '<div class="small">' + badges + '</div>';
@@ -195,6 +208,7 @@
                 setVal('code', item.code);
                 setVal('auteur', item.auteur);
                 setVal('chant', item.chant);
+                setChantUrl(item.url);
                 if (chantInput && preview) preview.innerHTML = renderChant(chantInput.value);
                 hidePanel();
 

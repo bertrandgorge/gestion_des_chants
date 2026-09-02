@@ -40,6 +40,11 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
                 <input type="text" class="form-control" id="auteur" name="auteur" value="<?= e($section['auteur']) ?>">
             </div>
         </div>
+        <input type="hidden" name="url" value="<?= e($section['url'] ?? '') ?>" data-url-field>
+        <div class="form-text<?= empty($section['url']) ? ' d-none' : '' ?>" data-url-display>
+            <i class="bi bi-link-45deg"></i>
+            <a href="<?= e($section['url'] ?? '') ?>" target="_blank" rel="noopener noreferrer" data-url-link><?= e($section['url'] ?? 'dsds') ?></a>
+        </div>
         <div>
             <label class="form-label" for="chant">Texte du chant</label>
             <textarea class="form-control font-monospace" id="chant" name="chant" rows="12" data-chant-input><?= e($section['chant']) ?></textarea>

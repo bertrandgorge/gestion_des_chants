@@ -60,6 +60,29 @@ final class SectionTypes
         return self::COMPORTEMENTS[$type] ?? 'chant';
     }
 
+    /** Les slugs de la liste DEFAUT. @return list<string> */
+    public static function typesDefaut(): array
+    {
+        return array_column(self::DEFAUT, 'type');
+    }
+
+    public static function estTypeDefaut(string $type): bool
+    {
+        return in_array($type, self::typesDefaut(), true);
+    }
+
+    /** Libellé (« nom ») associé à un type de la liste DEFAUT, ou null s'il est inconnu. */
+    public static function nomDefaut(string $type): ?string
+    {
+        foreach (self::DEFAUT as $section) {
+            if ($section['type'] === $type) {
+                return $section['nom'];
+            }
+        }
+
+        return null;
+    }
+
     public static function estOrdinaire(string $type): bool
     {
         return in_array($type, self::ORDINAIRE, true);
