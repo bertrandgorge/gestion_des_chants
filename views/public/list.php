@@ -18,8 +18,8 @@
         <?php foreach ($feuilles as $f): ?>
             <a class="list-group-item list-group-item-action" href="<?= e(feuille_public_url($f)) ?>">
                 <div class="fw-semibold"><?= e(format_date_fr($f['date_heure'])) ?></div>
-                <?php if ($f['titre_liturgique']): ?>
-                    <div class="small text-body-secondary"><?= e($f['titre_liturgique']) ?></div>
+                <?php if ($f['semaine']): ?>
+                    <div class="small text-body-secondary"><?= e($f['semaine']) ?></div>
                 <?php endif; ?>
             </a>
         <?php endforeach; ?>

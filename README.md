@@ -24,8 +24,9 @@ dépendances Composer et applique `db/schema.sql`.
 
 ### Assets front
 
-Les fichiers compilés (`public/assets/css/app.css`, `public/assets/js/vendor/*`) sont **commités**
-pour que la production n'ait pas besoin de Node. Pour les régénérer après modification du SCSS :
+Les fichiers compilés (`public/assets/css/app.css`, `public/assets/js/vendor/*`,
+`public/assets/css/fonts/*`) sont **commités** pour que la production n'ait pas besoin de Node.
+Pour les régénérer après modification du SCSS :
 
 ```bash
 npm install

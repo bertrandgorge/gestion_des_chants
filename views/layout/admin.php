@@ -18,7 +18,7 @@ $user = Auth::user();
 <body>
 <nav class="navbar navbar-expand bg-body-tertiary border-bottom">
     <div class="container">
-        <a class="navbar-brand" href="/app" title="Retour aux feuilles">&larr; Feuilles</a>
+        <a class="navbar-brand d-inline-flex align-items-center gap-1" href="/app" title="Retour aux feuilles"><i class="bi bi-arrow-left"></i> Feuilles</a>
         <span class="navbar-text fw-semibold">Administration</span>
         <div class="ms-auto d-flex align-items-center gap-2">
             <span class="d-none d-sm-inline text-body-secondary small"><?= e($user['email']) ?></span>

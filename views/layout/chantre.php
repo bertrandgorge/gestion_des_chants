@@ -22,7 +22,7 @@ $user = Auth::user();
         <div class="ms-auto d-flex align-items-center gap-2">
             <span class="d-none d-sm-inline text-body-secondary small"><?= e($user['email']) ?></span>
             <?php if (Auth::isAdmin()): ?>
-                <a class="btn btn-sm btn-outline-secondary" href="/admin/paroisse" title="Administration de la paroisse" aria-label="Administration">&#9881;</a>
+                <a class="btn btn-link link-secondary text-decoration-none p-1 lh-1" href="/admin/paroisse" title="Administration de la paroisse" aria-label="Administration"><i class="bi bi-gear-fill fs-4"></i></a>
             <?php endif; ?>
             <form method="post" action="/logout" class="d-inline">
                 <?= Csrf::field() ?>

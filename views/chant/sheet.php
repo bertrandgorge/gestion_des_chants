@@ -1,13 +1,14 @@
 <?php
 
-/** @var array $feuille @var array $sections */
+/** @var array $feuille @var array $sections @var array $clochers */
+use App\Auth;
 use App\Csrf;
 use App\SectionTypes;
 
 $semaineAnnee = trim(($feuille['annee'] ? 'Année ' . $feuille['annee'] : '') . ($feuille['semaine'] ? ' · ' . $feuille['semaine'] : ''), ' ·');
 ?>
 <div class="mb-3">
-    <a href="/app" class="small text-decoration-none">&larr; Toutes les feuilles</a>
+    <a href="/app" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Toutes les feuilles</a>
 </div>
 
 <div class="card card-body mb-4">
@@ -15,24 +16,33 @@ $semaineAnnee = trim(($feuille['annee'] ? 'Année ' . $feuille['annee'] : '') . 
         <div>
             <h1 class="h4 mb-1"><?= e($feuille['clocher_nom']) ?> — <?= e(format_date_fr($feuille['date_heure'])) ?></h1>
             <div class="text-body-secondary"><?= e($semaineAnnee) ?>
-                <?php if ($feuille['couleur']): ?><span class="badge rounded-pill text-bg-light border"><?= e($feuille['couleur']) ?></span><?php endif; ?>
+                <?php if ($feuille['couleur']): $classeCouleur = liturgie_couleur_classe($feuille['couleur']); ?><span class="badge rounded-pill text-capitalize <?= $classeCouleur ?: 'text-bg-light border' ?>"><?= e($feuille['couleur']) ?></span><?php endif; ?>
             </div>
-            <?php if ($feuille['titre_liturgique']): ?>
-                <div class="fst-italic text-body-secondary"><?= e($feuille['titre_liturgique']) ?></div>
-            <?php endif; ?>
             <div class="small text-body-secondary mt-1">
                 Données AELF du <?= e($feuille['aelf_date'] ?? '—') ?>.
             </div>
         </div>
         <div class="d-flex flex-column gap-2">
-            <a class="btn btn-sm btn-outline-primary" target="_blank" href="<?= e(feuille_public_url($feuille)) ?>">Aperçu paroissien</a>
+            <a class="btn btn-sm btn-outline-primary" target="_blank" href="<?= e(feuille_public_url($feuille)) ?>"><i class="bi bi-box-arrow-up-right"></i> Aperçu paroissien</a>
             <form method="post" action="/app/feuilles/<?= $feuille['id'] ?>/resync" onsubmit="return confirm('Recharger les lectures depuis AELF ? Les lectures modifiées seront écrasées.')">
                 <?= Csrf::field() ?>
-                <button class="btn btn-sm btn-outline-secondary w-100">Resynchroniser AELF</button>
+                <button class="btn btn-sm btn-outline-secondary w-100"><i class="bi bi-arrow-repeat"></i> Resynchroniser AELF</button>
             </form>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-copie
+                    data-id="<?= $feuille['id'] ?>"
+                    data-defaut="<?= e((new DateTimeImmutable($feuille['date_heure']))->format('Y-m-d\TH:i')) ?>"
+                    data-clocher="<?= $feuille['clocher_id'] ?>"><i class="bi bi-files"></i> Copier la feuille</button>
+            <?php if ((int) $feuille['chantre_id'] === Auth::id()): ?>
+                <form method="post" action="/app/feuilles/<?= $feuille['id'] ?>/supprimer" onsubmit="return confirm('Supprimer définitivement cette feuille ?')">
+                    <?= Csrf::field() ?>
+                    <button class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-trash3"></i> Supprimer la feuille</button>
+                </form>
+            <?php endif; ?>
         </div>
     </div>
 </div>
+
+<?php require APP_ROOT . '/views/feuilles/_copie_modal.php'; ?>
 
 <div class="list-group mb-3" data-sections data-feuille="<?= $feuille['id'] ?>">
     <?php foreach ($sections as $s): ?>
@@ -49,7 +59,7 @@ $semaineAnnee = trim(($feuille['annee'] ? 'Année ' . $feuille['annee'] : '') . 
         }
         ?>
         <div class="list-group-item d-flex align-items-center gap-2" data-section id="section-<?= $s['id'] ?>" data-id="<?= $s['id'] ?>">
-            <span class="drag-handle text-body-secondary" title="Glisser pour réorganiser" style="cursor:grab">&#8942;&#8942;</span>
+            <span class="drag-handle text-body-secondary" title="Glisser pour réorganiser" style="cursor:grab"><i class="bi bi-grip-vertical"></i></span>
             <a class="flex-grow-1 text-decoration-none text-body" href="/app/sections/<?= $s['id'] ?>">
                 <span class="fw-semibold"><?= e($s['nom']) ?></span>
                 <?php if ($resume !== ''): ?>
@@ -58,7 +68,7 @@ $semaineAnnee = trim(($feuille['annee'] ? 'Année ' . $feuille['annee'] : '') . 
                     <span class="badge text-bg-light border ms-1">à compléter</span>
                 <?php endif; ?>
             </a>
-            <button type="button" class="btn btn-sm btn-link text-danger" data-remove-section aria-label="Supprimer la section">&times;</button>
+            <button type="button" class="btn btn-sm btn-link text-danger" data-remove-section aria-label="Supprimer la section"><i class="bi bi-x-lg"></i></button>
         </div>
     <?php endforeach; ?>
 </div>

@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Auth;
 use App\Database;
 use App\Models\Chant;
+use App\Models\Clocher;
 use App\Models\FeuilleChant;
 use App\SectionTypes;
 
@@ -21,6 +22,7 @@ final class ChantController
         render('chantre', 'chant/sheet', [
             'feuille'  => $feuille,
             'sections' => $sections,
+            'clochers' => Clocher::forParoisse(Auth::paroisseId()),
             'titre'    => 'Feuille du ' . format_date_fr($feuille['date_heure']),
         ]);
     }
@@ -170,6 +172,21 @@ final class ChantController
         }
 
         json_response(['ok' => true, 'reprises' => $reprises]);
+    }
+
+    /** AJAX : aperçu paroissien d'une section à partir des champs en cours d'édition. */
+    public function previewSection(array $params): void
+    {
+        Auth::requireLogin();
+        $section = $this->ownSection((int) $params['id']);
+
+        foreach (['titre', 'auteur', 'code', 'chant', 'reference', 'introduction', 'contenu', 'acclamation'] as $champ) {
+            if (array_key_exists($champ, $_POST)) {
+                $section[$champ] = (string) $_POST[$champ];
+            }
+        }
+
+        echo view('public/_section', ['s' => $section]);
     }
 
     private function ownFeuille(int $id): array

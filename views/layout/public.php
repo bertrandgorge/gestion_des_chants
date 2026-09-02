@@ -28,7 +28,7 @@ $bsTheme = $theme === 'sombre' ? 'dark' : ($theme === 'clair' ? 'light' : null);
 <div class="public-toolbar">
     <button type="button" class="btn btn-sm btn-outline-secondary" data-font="-" aria-label="Réduire le texte">A&minus;</button>
     <button type="button" class="btn btn-sm btn-outline-secondary" data-font="+" aria-label="Agrandir le texte">A+</button>
-    <button type="button" class="btn btn-sm btn-outline-secondary" data-theme-toggle aria-label="Changer de thème">&#9788;</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-theme-toggle aria-label="Changer de thème"><i class="bi bi-circle-half"></i></button>
 </div>
 <main class="public-main">
     <?= $content ?>

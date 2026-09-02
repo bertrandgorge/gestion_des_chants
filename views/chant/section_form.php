@@ -6,8 +6,9 @@ use App\SectionTypes;
 
 $retour = '/app/feuilles/' . $section['feuille_id'];
 $estChant = in_array($comportement, ['chant', 'ordinaire'], true);
+$apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
 ?>
-<div class="mb-3"><a href="<?= e($retour) ?>" class="small text-decoration-none">&larr; Retour à la feuille</a></div>
+<div class="mb-3"><a href="<?= e($retour) ?>" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Retour à la feuille</a></div>
 
 <h1 class="h4 mb-1"><?= e($section['nom']) ?></h1>
 <p class="text-body-secondary small">
@@ -64,8 +65,8 @@ $estChant = in_array($comportement, ['chant', 'ordinaire'], true);
         </div>
         <div>
             <label class="form-label" for="contenu">Contenu</label>
-            <textarea class="form-control" id="contenu" name="contenu" rows="14"><?= e($section['contenu']) ?></textarea>
-            <div class="form-text">Contenu HTML issu d'AELF. Modifiable librement.</div>
+            <textarea class="form-control font-monospace" id="contenu" name="contenu" rows="14"><?= e($section['contenu']) ?></textarea>
+            <div class="form-text">Contenu HTML issu d'AELF.</div>
         </div>
 
     <?php elseif ($comportement === 'psaume'): ?>
@@ -102,13 +103,21 @@ $estChant = in_array($comportement, ['chant', 'ordinaire'], true);
         </div>
         <div>
             <label class="form-label" for="contenu">Contenu</label>
-            <textarea class="form-control" id="contenu" name="contenu" rows="14"><?= e($section['contenu']) ?></textarea>
+            <textarea class="form-control font-monospace" id="contenu" name="contenu" rows="14"><?= e($section['contenu']) ?></textarea>
         </div>
 
     <?php else: /* priere & divers */ ?>
         <div>
             <label class="form-label" for="contenu">Contenu</label>
             <textarea class="form-control" id="contenu" name="contenu" rows="10"><?= e($section['contenu']) ?></textarea>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($apercuParoissien): ?>
+        <div>
+            <div class="form-label">Aperçu paroissien</div>
+            <div class="section-apercu border rounded p-3" data-section-preview data-endpoint="/app/sections/<?= $section['id'] ?>/apercu"><?= view('public/_section', ['s' => $section]) ?></div>
+            <div class="form-text">Rendu tel qu'il apparaîtra sur la feuille des paroissiens.</div>
         </div>
     <?php endif; ?>
 

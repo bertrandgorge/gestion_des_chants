@@ -9,13 +9,6 @@ $comportement = SectionTypes::comportement($s['type']);
     <h2 class="feuille-section-titre"><?= e($s['nom']) ?></h2>
 
     <?php if (in_array($comportement, ['chant', 'ordinaire'], true)): ?>
-        <?php if ($s['titre'] || $s['code'] || $s['auteur']): ?>
-            <p class="feuille-chant-meta">
-                <?php if ($s['titre']): ?><span class="fw-semibold"><?= e($s['titre']) ?></span><?php endif; ?>
-                <?php if ($s['code']): ?><span class="text-body-secondary"> · <?= e($s['code']) ?></span><?php endif; ?>
-                <?php if ($s['auteur']): ?><span class="text-body-secondary"> · <?= e($s['auteur']) ?></span><?php endif; ?>
-            </p>
-        <?php endif; ?>
         <div class="feuille-chant-texte"><?= render_chant($s['chant']) ?></div>
 
     <?php elseif ($comportement === 'psaume'): ?>

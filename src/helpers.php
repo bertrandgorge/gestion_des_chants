@@ -272,6 +272,22 @@ if (!function_exists('feuille_public_url')) {
     }
 }
 
+if (!function_exists('liturgie_couleur_classe')) {
+    /**
+     * Classe CSS du badge correspondant à une couleur liturgique AELF
+     * (noir, rouge, violet, rose, vert, blanc). Chaîne vide si inconnue.
+     */
+    function liturgie_couleur_classe(?string $couleur): string
+    {
+        $slug = mb_strtolower(trim((string) $couleur));
+        $connues = ['noir', 'rouge', 'violet', 'rose', 'vert', 'blanc'];
+
+        return in_array($slug, $connues, true)
+            ? 'badge-liturgie badge-liturgie--' . $slug
+            : '';
+    }
+}
+
 if (!function_exists('jours_semaine')) {
     /** @return array<int,string> 1 => lundi ... 7 => dimanche */
     function jours_semaine(): array

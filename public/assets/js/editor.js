@@ -110,6 +110,28 @@
             chantInput.addEventListener('input', refresh);
         }
 
+        // Aperçu paroissien fidèle (lectures / évangile) : rendu côté serveur
+        // via la vue publique, rafraîchi à la frappe.
+        var sectionPreview = form.querySelector('[data-section-preview]');
+        if (sectionPreview) {
+            var previewUrl = sectionPreview.getAttribute('data-endpoint');
+            var previewTimer = null;
+            var refreshSectionPreview = function () {
+                fetch(previewUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'fetch' },
+                    body: new URLSearchParams(new FormData(form))
+                })
+                    .then(function (r) { return r.text(); })
+                    .then(function (html) { sectionPreview.innerHTML = html; })
+                    .catch(function () { /* on garde l'aperçu précédent */ });
+            };
+            form.addEventListener('input', function () {
+                clearTimeout(previewTimer);
+                previewTimer = setTimeout(refreshSectionPreview, 350);
+            });
+        }
+
         var clearBtn = form.querySelector('[data-clear-chant]');
         if (clearBtn) {
             clearBtn.addEventListener('click', function () {

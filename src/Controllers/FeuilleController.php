@@ -18,7 +18,6 @@ final class FeuilleController
         $feuilles = FeuilleChant::upcomingForParoisse(Auth::paroisseId());
         render('chantre', 'feuilles/index', [
             'feuilles' => $feuilles,
-            'clochers' => Clocher::forParoisse(Auth::paroisseId()),
             'titre'    => 'Feuilles de messe',
         ]);
     }

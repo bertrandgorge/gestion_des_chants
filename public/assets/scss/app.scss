@@ -7,6 +7,80 @@ $primary: #5b4b8a; // violet liturgique discret
 
 @import "bootstrap/scss/bootstrap";
 
+// --- Icônes ------------------------------------------------------------
+// Sous-ensemble de Bootstrap Icons, police auto-hébergée (copiée dans
+// css/fonts/ par « npm run vendor »). Ajouter les glyphes utilisés au
+// besoin — voir node_modules/bootstrap-icons/font/bootstrap-icons.json.
+@font-face {
+    font-display: block;
+    font-family: "bootstrap-icons";
+    src: url("fonts/bootstrap-icons.woff2") format("woff2"),
+         url("fonts/bootstrap-icons.woff") format("woff");
+}
+
+.bi {
+    display: inline-block;
+    font-family: "bootstrap-icons" !important;
+    font-style: normal;
+    font-weight: normal !important;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+    vertical-align: -.125em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+    &::before { content: ""; }
+}
+
+// Glyphes utilisés dans les vues (codepoints : bootstrap-icons.json).
+$bi-glyphes: (
+    "arrow-left":         "\f12f",
+    "arrow-repeat":       "\f130",
+    "box-arrow-up-right": "\f1c5",
+    "chevron-right":      "\f285",
+    "circle-half":        "\f288",
+    "files":              "\f3c2",
+    "gear-fill":          "\f3e2",
+    "grip-vertical":      "\f3fe",
+    "plus-lg":            "\f64d",
+    "trash3":             "\f78b",
+    "x-lg":               "\f659",
+);
+
+@each $nom, $glyphe in $bi-glyphes {
+    .bi-#{$nom}::before { content: $glyphe; }
+}
+
+// --- Couleurs liturgiques -----------------------------------------
+// Palette de référence, réutilisée par les badges de l'interface chantre
+// et par l'interface paroissien.
+$liturgie-couleurs: (
+    "noir":   #212529,
+    "rouge":  #b02a37,
+    "violet": #6f42c1,
+    "rose":   #e685b5,
+    "vert":   #2f7d4f,
+    "blanc":  #ffffff,
+) !default;
+
+:root {
+    @each $nom, $valeur in $liturgie-couleurs {
+        --liturgie-#{$nom}: #{$valeur};
+    }
+}
+
+.badge-liturgie {
+    border: 1px solid rgba(0, 0, 0, .15);
+
+    @each $nom, $valeur in $liturgie-couleurs {
+        &.badge-liturgie--#{$nom} {
+            background-color: $valeur;
+            color: color-contrast($valeur);
+        }
+    }
+}
+
 // --- Écrans d'authentification -------------------------------------
 .auth-body {
     display: flex;
@@ -29,7 +103,6 @@ $primary: #5b4b8a; // violet liturgique discret
 // --- Interface chantre --------------------------------------------
 .drag-handle {
     user-select: none;
-    letter-spacing: -3px;
 }
 
 .chant-preview,
@@ -41,6 +114,15 @@ $primary: #5b4b8a; // violet liturgique discret
 .chant-preview:empty::before {
     content: "L'aperçu apparaîtra ici.";
     color: var(--bs-secondary-color);
+}
+
+// Aperçu paroissien d'une section (lecture / évangile) : on rejoue le
+// contexte typographique de la feuille des paroissiens pour un rendu fidèle.
+.section-apercu {
+    line-height: 1.6;
+
+    .feuille-section { margin-bottom: 0; }
+    .feuille-section-titre { margin-top: 0; }
 }
 
 .autocomplete-panel {

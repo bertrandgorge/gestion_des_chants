@@ -62,6 +62,7 @@ $router->post('/app/feuilles/{id}/resync', [FeuilleController::class, 'resync'])
 $router->post('/app/feuilles/{id}/sections', [ChantController::class, 'sections']);
 $router->get('/app/sections/{id}', [ChantController::class, 'editSection']);
 $router->post('/app/sections/{id}', [ChantController::class, 'saveSection']);
+$router->post('/app/sections/{id}/apercu', [ChantController::class, 'previewSection']);
 $router->post('/app/sections/{id}/reprendre-ordinaire', [ChantController::class, 'reprendreOrdinaire']);
 $router->get('/app/chants/recherche', [ChantController::class, 'search']);
 
