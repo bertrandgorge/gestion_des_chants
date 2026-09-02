@@ -9,6 +9,7 @@ use App\Database;
 use App\Models\Chant;
 use App\Models\Clocher;
 use App\Models\FeuilleChant;
+use App\Models\Paroisse;
 use App\SectionTypes;
 
 final class ChantController
@@ -23,7 +24,49 @@ final class ChantController
             'feuille'  => $feuille,
             'sections' => $sections,
             'clochers' => Clocher::forParoisse(Auth::paroisseId()),
+            'impression' => SectionTypes::selectionImpression(
+                Paroisse::impressionSections(Auth::paroisseId()),
+                $sections
+            ),
             'titre'    => 'Feuille du ' . format_date_fr($feuille['date_heure']),
+        ]);
+    }
+
+    /**
+     * Feuille de chant prête à imprimer (deux colonnes, format A5 recto/verso).
+     * On mémorise la sélection de sections cochées au niveau de la paroisse
+     * pour préremplir l'impression des feuilles suivantes.
+     */
+    public function imprimer(array $params): void
+    {
+        Auth::requireLogin();
+        $feuille = $this->ownFeuille((int) $params['id']);
+        $sections = Chant::forFeuille((int) $feuille['id']);
+
+        $coches = array_map('intval', (array) ($_POST['sections'] ?? []));
+
+        // Préférence paroisse : on met à jour les types présents sur cette feuille.
+        $prefs = Paroisse::impressionSections(Auth::paroisseId());
+        foreach ($sections as $s) {
+            $prefs[(string) $s['type']] = in_array((int) $s['id'], $coches, true);
+        }
+        Paroisse::enregistrerImpressionSections(Auth::paroisseId(), $prefs);
+
+        // Sections cochées et non vides (même filtre que la feuille des paroissiens).
+        $aImprimer = array_values(array_filter(
+            $sections,
+            static fn ($s) => in_array((int) $s['id'], $coches, true)
+                && (trim((string) $s['chant']) !== ''
+                    || trim((string) $s['contenu']) !== ''
+                    || trim((string) $s['titre']) !== '')
+        ));
+
+        echo view('layout/impression', [
+            'content'  => view('impression/feuille', [
+                'feuille'  => $feuille,
+                'sections' => $aImprimer,
+            ]),
+            'pageTitle' => 'Feuille de chant — ' . format_date_fr($feuille['date_heure'], false),
         ]);
     }
 

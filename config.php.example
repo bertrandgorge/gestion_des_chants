@@ -32,5 +32,10 @@ return [
         // URL publique de l'application, SANS slash final. Sert aux liens des emails
         // et aux QR codes des clochers.
         'base_url' => 'https://exemple.fr',
+
+        // Affichage des erreurs PHP dans le navigateur. À laisser sur false :
+        // en production les erreurs ne sont jamais montrées à l'utilisateur,
+        // seulement journalisées (error_log). Passez à true uniquement en local.
+        'debug' => false,
     ],
 ];

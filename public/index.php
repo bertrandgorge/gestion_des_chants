@@ -55,6 +55,7 @@ $router->get('/app/feuilles/{id}', [ChantController::class, 'editSheet']);
 $router->post('/app/feuilles/{id}/copier', [FeuilleController::class, 'copy']);
 $router->post('/app/feuilles/{id}/supprimer', [FeuilleController::class, 'delete']);
 $router->post('/app/feuilles/{id}/resync', [FeuilleController::class, 'resync']);
+$router->post('/app/feuilles/{id}/imprimer', [ChantController::class, 'imprimer']);
 $router->post('/app/feuilles/{id}/sections', [ChantController::class, 'sections']);
 $router->get('/app/sections/{id}', [ChantController::class, 'editSection']);
 $router->post('/app/sections/{id}', [ChantController::class, 'saveSection']);
@@ -79,7 +80,7 @@ try {
 } catch (Throwable $e) {
     error_log('[gdc] ' . $e);
     http_response_code(500);
-    if (ini_get('display_errors')) {
+    if (!empty($GLOBALS['config']['app']['debug'])) {
         echo '<pre>' . e((string) $e) . '</pre>';
     } else {
         echo view('errors/500');

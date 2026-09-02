@@ -4,10 +4,11 @@
 SET NAMES utf8mb4;
 
 CREATE TABLE IF NOT EXISTS paroisses (
-    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    nom        VARCHAR(150) NOT NULL,
-    slug       VARCHAR(100) NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id                  INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    nom                 VARCHAR(150) NOT NULL,
+    slug                VARCHAR(100) NOT NULL,
+    impression_sections TEXT DEFAULT NULL,          -- JSON « type de section => booléen » : sélection d'impression mémorisée
+    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uniq_paroisses_slug (slug)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

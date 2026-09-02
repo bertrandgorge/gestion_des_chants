@@ -1,6 +1,6 @@
 <?php
 
-/** @var array $feuille @var array $sections @var array $clochers */
+/** @var array $feuille @var array $sections @var array $clochers @var array $impression */
 use App\Auth;
 use App\Csrf;
 use App\SectionTypes;
@@ -24,6 +24,7 @@ $semaineAnnee = trim(($feuille['annee'] ? 'Année ' . $feuille['annee'] : '') . 
         </div>
         <div class="d-flex flex-column gap-2">
             <a class="btn btn-sm btn-outline-primary" target="_blank" href="<?= e(feuille_public_url($feuille)) ?>"><i class="bi bi-box-arrow-up-right"></i> Aperçu paroissien</a>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#impressionModal"><i class="bi bi-printer"></i> Imprimer</button>
             <form method="post" action="/app/feuilles/<?= $feuille['id'] ?>/resync" onsubmit="return confirm('Recharger les lectures depuis AELF ? Les lectures modifiées seront écrasées.')">
                 <?= Csrf::field() ?>
                 <button class="btn btn-sm btn-outline-secondary w-100"><i class="bi bi-arrow-repeat"></i> Resynchroniser AELF</button>
@@ -43,6 +44,7 @@ $semaineAnnee = trim(($feuille['annee'] ? 'Année ' . $feuille['annee'] : '') . 
 </div>
 
 <?php require APP_ROOT . '/views/feuilles/_copie_modal.php'; ?>
+<?php require APP_ROOT . '/views/feuilles/_impression_modal.php'; ?>
 
 <div class="list-group mb-3" data-sections data-feuille="<?= $feuille['id'] ?>">
     <?php foreach ($sections as $s): ?>

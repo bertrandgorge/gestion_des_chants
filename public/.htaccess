@@ -16,5 +16,6 @@
     Header set X-Frame-Options "SAMEORIGIN"
 </IfModule>
 
-# En production, désactiver l'affichage des erreurs :
-# php_flag display_errors off
+# L'affichage des erreurs PHP est désactivé par le code (src/bootstrap.php) :
+# elles sont journalisées mais jamais montrées à l'utilisateur.
+# Pour les afficher en local, mettre 'debug' => true dans config.php['app'].

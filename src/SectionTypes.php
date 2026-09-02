@@ -46,7 +46,7 @@ final class SectionTypes
         'deuxieme_lecture'   => 'lecture',
         'psaume'             => 'psaume',
         'evangile'           => 'evangile',
-        'priere_universelle' => 'priere',
+        'priere_universelle' => 'chant',
         'offertoire'         => 'chant',
         'communion'          => 'chant',
         'envoi'              => 'chant',
@@ -54,6 +54,9 @@ final class SectionTypes
 
     /** Sections qui composent l'ordinaire de la messe (reprise groupée). */
     public const ORDINAIRE = ['kyrie', 'gloria', 'alleluia', 'acclamation', 'sanctus', 'anamnese', 'agnus'];
+
+    /** Comportements cochés par défaut à l'impression de la feuille de chant. */
+    private const IMPRIMABLES_DEFAUT = ['chant', 'ordinaire', 'psaume'];
 
     public static function comportement(string $type): string
     {
@@ -86,6 +89,39 @@ final class SectionTypes
     public static function estOrdinaire(string $type): bool
     {
         return in_array($type, self::ORDINAIRE, true);
+    }
+
+    /**
+     * Une section de ce type est-elle cochée par défaut à l'impression ?
+     * Les chants, l'ordinaire, le psaume — et donc les sections personnalisées,
+     * dont le comportement par défaut est « chant » — le sont ; les lectures,
+     * l'évangile et la prière universelle ne le sont pas.
+     */
+    public static function imprimableParDefaut(string $type): bool
+    {
+        return in_array(self::comportement($type), self::IMPRIMABLES_DEFAUT, true);
+    }
+
+    /**
+     * Résout, pour chaque section d'une feuille, si sa case « imprimer » est
+     * cochée : la préférence mémorisée de la paroisse l'emporte, sinon on
+     * retombe sur le défaut par comportement.
+     *
+     * @param array<string,bool>             $prefs    type de section => coché (préférence paroisse)
+     * @param array<int,array<string,mixed>> $sections lignes « chants » de la feuille
+     * @return array<int,bool> id de section => coché
+     */
+    public static function selectionImpression(array $prefs, array $sections): array
+    {
+        $selection = [];
+        foreach ($sections as $s) {
+            $type = (string) $s['type'];
+            $selection[(int) $s['id']] = array_key_exists($type, $prefs)
+                ? (bool) $prefs[$type]
+                : self::imprimableParDefaut($type);
+        }
+
+        return $selection;
     }
 
     /** Fabrique un slug de type unique pour une section ajoutée manuellement. */

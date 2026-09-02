@@ -50,7 +50,8 @@ docker compose exec app vendor/bin/phpunit
 | `src/Models/` | accès aux tables (requêtes SQL) |
 | `views/` | gabarits PHP (`layout/`, `auth/`, `paroisse/`, `feuilles/`, `chant/`, `public/`, `emails/`) |
 | `db/` | `schema.sql` + `migrations/*.sql` |
-| `bin/migrate.php` | applique le schéma et les migrations (idempotent) |
+| `bin/migrate.php` | applique le schéma et les migrations (idempotent, via `App\Migrator`) |
+| `src/Installer.php` | assistant d'installation servi tant que `config.php` n'existe pas (`/install`) |
 | `bin/import_chantonseneglise.php` | importe les chants de chantonseneglise.fr (voir ci-dessous) |
 | `bin/import_catechisme_emmanuel.php` | importe les chants de catechisme-emmanuel.com (répertoire Emmanuel, code IEV) |
 
@@ -132,11 +133,17 @@ Mêmes passes (`enum` / `fetch` / `import`) et mêmes options (`--phase`, `--lim
 1. Déposer les fichiers (hors `docker/`, `tests/`, `node_modules/`).
 2. Faire pointer le domaine / sous-domaine sur le dossier `public/`.
 3. `composer install --no-dev` (Composer disponible dans cPanel).
-4. Créer la base MySQL depuis cPanel, copier `config.php.example` → `config.php` et renseigner
-   base de données + SMTP.
-5. `php bin/migrate.php` (terminal cPanel).
-6. En production, désactiver l'affichage des erreurs (`php_flag display_errors off` dans
-   `public/.htaccess` ou via le sélecteur PHP).
+4. Créer la base MySQL depuis cPanel.
+5. Ouvrir le site dans un navigateur : tant que `config.php` n'existe pas, l'**assistant
+   d'installation** (`/install`) s'affiche. Il permet de saisir la base de données et le
+   SMTP, de tester la connexion et l'envoi d'email, puis écrit `config.php` et applique le
+   schéma. Une fois `config.php` créé, `/install` n'est plus accessible.
+   - Alternative manuelle : copier `config.php.example` → `config.php`, le renseigner, puis
+     `php bin/migrate.php` (terminal cPanel).
+
+L'affichage des erreurs PHP est déjà désactivé par le code (`src/bootstrap.php`) : les erreurs
+sont journalisées mais jamais montrées au visiteur. Pour les afficher en local, mettre
+`'debug' => true` dans `config.php` (section `app`).
 
 Les seules données de configuration à gérer sur l'hébergement sont dans `config.php`
 (base de données, SMTP, URL publique).
