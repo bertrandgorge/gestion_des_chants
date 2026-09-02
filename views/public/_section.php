@@ -23,7 +23,7 @@ $comportement = SectionTypes::comportement($s['type']);
         <div class="feuille-chant-texte"><?= render_chant($s['chant']) ?></div>
 
     <?php elseif ($comportement === 'lecture'): ?>
-        <?php if ($s['titre']): ?><p class="feuille-lecture-titre">«&nbsp;<?= e(trim($s['titre'], '«» ')) ?>&nbsp;»</p><?php endif; ?>
+        <?php if ($s['titre']): ?><p class="feuille-lecture-titre">«&nbsp;<?= e(strip_guillemets($s['titre'])) ?>&nbsp;»</p><?php endif; ?>
         <?php if ($s['introduction'] || $s['reference']): ?>
             <p class="feuille-ref"><?= e($s['introduction']) ?><?php if ($s['reference']): ?> (<?= e($s['reference']) ?>)<?php endif; ?></p>
         <?php endif; ?>
@@ -36,7 +36,7 @@ $comportement = SectionTypes::comportement($s['type']);
         <?php if ($s['introduction'] || $s['reference']): ?>
             <p class="feuille-ref"><?= e($s['introduction']) ?><?php if ($s['reference']): ?> (<?= e($s['reference']) ?>)<?php endif; ?></p>
         <?php endif; ?>
-        <?php if ($s['titre']): ?><p class="feuille-lecture-titre">«&nbsp;<?= e(trim($s['titre'], '«» ')) ?>&nbsp;»</p><?php endif; ?>
+        <?php if ($s['titre']): ?><p class="feuille-lecture-titre">«&nbsp;<?= e(strip_guillemets($s['titre'])) ?>&nbsp;»</p><?php endif; ?>
         <div class="feuille-lecture-contenu"><?= clean_html($s['contenu']) ?></div>
 
     <?php else: ?>

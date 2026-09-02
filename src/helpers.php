@@ -188,6 +188,17 @@ if (!function_exists('render_chant')) {
     }
 }
 
+if (!function_exists('strip_guillemets')) {
+    /**
+     * Retire les guillemets et espaces (y compris insécables) en début/fin de chaîne.
+     * Utilise une regex Unicode : un trim() classique casserait les caractères multi-octets.
+     */
+    function strip_guillemets(?string $s): string
+    {
+        return (string) preg_replace('/^[\s«»"\x{00A0}]+|[\s«»"\x{00A0}]+$/u', '', (string) $s);
+    }
+}
+
 if (!function_exists('clean_html')) {
     /**
      * Nettoyage léger d'un fragment HTML (contenu de lecture AELF, éditable par les chantres) :

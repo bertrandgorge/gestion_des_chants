@@ -151,17 +151,17 @@ final class Aelf
 
             if ($sectionType === 'psaume') {
                 $sections[$sectionType] = [
-                    'titre'     => (string) ($lec['titre'] ?? 'Psaume'),
-                    'reference' => (string) ($lec['ref'] ?? ''),
+                    'titre'     => self::texteBrut($lec['titre'] ?? 'Psaume'),
+                    'reference' => self::texteBrut($lec['ref'] ?? ''),
                     'chant'     => self::psaumeVersTexte($lec),
                 ];
                 continue;
             }
 
             $data = [
-                'titre'        => (string) ($lec['titre'] ?? ''),
-                'reference'    => (string) ($lec['ref'] ?? ''),
-                'introduction' => (string) ($lec['intro_lue'] ?? ''),
+                'titre'        => self::texteBrut($lec['titre'] ?? ''),
+                'reference'    => self::texteBrut($lec['ref'] ?? ''),
+                'introduction' => self::texteBrut($lec['intro_lue'] ?? ''),
                 'contenu'      => (string) ($lec['contenu'] ?? ''),
             ];
 
@@ -177,6 +177,16 @@ final class Aelf
         }
 
         return $sections;
+    }
+
+    /** Champ texte AELF : entités décodées, espaces insécables normalisés, rognage. */
+    private static function texteBrut(mixed $value): string
+    {
+        $text = html_entity_decode((string) $value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = str_replace(["\xC2\xA0", "\xE2\x80\xAF"], ' ', $text); // nbsp, narrow nbsp
+        $text = preg_replace('/[ \t]+/', ' ', $text) ?? $text;
+
+        return trim($text);
     }
 
     /** Refrain psalmique + strophes -> texte « R/ ... » + couplets. */

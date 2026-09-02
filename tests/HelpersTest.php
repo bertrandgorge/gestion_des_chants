@@ -40,6 +40,16 @@ final class HelpersTest extends TestCase
         );
     }
 
+    public function testStripGuillemetsAvecEspacesInsecables(): void
+    {
+        // «   Si tu n'avertis...   »
+        $titre = "\u{00AB}\u{00A0}Si tu n\u{2019}avertis pas le m\u{00E9}chant\u{00A0}\u{00BB}";
+        $propre = strip_guillemets($titre);
+
+        $this->assertSame("Si tu n\u{2019}avertis pas le m\u{00E9}chant", $propre);
+        $this->assertTrue(mb_check_encoding($propre, 'UTF-8'));
+    }
+
     public function testCleanHtmlRetireScript(): void
     {
         $sale = '<p>Bonjour</p><script>alert(1)</script><a href="javascript:evil()" onclick="x()">lien</a>';
