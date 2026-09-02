@@ -51,7 +51,8 @@ docker compose exec app vendor/bin/phpunit
 | `views/` | gabarits PHP (`layout/`, `auth/`, `paroisse/`, `feuilles/`, `chant/`, `public/`, `emails/`) |
 | `db/` | `schema.sql` + `migrations/*.sql` |
 | `bin/migrate.php` | applique le schéma et les migrations (idempotent) |
-| `bin/import_chantonseneglise.php` | importe les chants de chantonseneglise.fr dans la base (voir ci-dessous) |
+| `bin/import_chantonseneglise.php` | importe les chants de chantonseneglise.fr (voir ci-dessous) |
+| `bin/import_catechisme_emmanuel.php` | importe les chants de catechisme-emmanuel.com (répertoire Emmanuel, code IEV) |
 
 ### Import de chants (préremplissage)
 
@@ -94,6 +95,27 @@ fiches déjà importées sans retélécharger :
 ```bash
 docker compose exec app php bin/import_chantonseneglise.php --reformat
 ```
+
+#### Répertoire Emmanuel (catechisme-emmanuel.com)
+
+Ces chants (Communauté de l'Emmanuel) portent un code **IEV** (« IEV 19-06 »)
+absent de chantonseneglise.fr. On les importe **en premier**, puis on lance
+chantonseneglise qui **complète** les fiches Emmanuel (cote Secli, auteur, paroles
+plus complètes) au lieu de créer un doublon — le rapprochement se fait sur le code
+IEV, mémorisé dans `import_journal.code_repertoire` (relevé dès que l'éditeur d'une
+fiche chantonseneglise est « Éditions de l'Emmanuel »). Ces fiches passent alors au
+statut `complete`.
+
+```bash
+# 1. import Emmanuel (≈140 chants, ~2 s/requête)
+docker compose exec app php bin/import_catechisme_emmanuel.php
+
+# 2. import chantonseneglise : complète les fiches Emmanuel + ajoute le reste
+docker compose exec app php bin/import_chantonseneglise.php
+```
+
+Mêmes passes (`enum` / `fetch` / `import`) et mêmes options (`--phase`, `--limit`,
+`--refresh`, `--reformat`, `--dry-run`) que l'import chantonseneglise.
 
 ### URLs
 

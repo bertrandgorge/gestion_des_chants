@@ -18,6 +18,12 @@ declare(strict_types=1);
  *               (feuille_id = NULL, url = fiche source, nb_couplets renseigné),
  *               puis passe la ligne à « importe ». Aucune requête réseau.
  *
+ * Répertoire Emmanuel : quand l'éditeur d'une fiche est « Éditions de l'Emmanuel »,
+ * on relève son code IEV (ex. « IEV 19-06 ») dans import_journal.code_repertoire.
+ * Si ce chant a déjà été importé depuis catechisme-emmanuel.com (import à lancer
+ * EN PREMIER), la passe IMPORT complète la fiche Emmanuel existante (cote Secli,
+ * auteur, paroles plus complètes) au lieu de créer un doublon → statut « complete ».
+ *
  * Le « type » est toujours un slug de App\SectionTypes::DEFAUT (entree, kyrie,
  * communion, envoi…), déduit du libellé du site (« entree » par défaut).
  *
@@ -109,8 +115,8 @@ if (isset($opts['reclassify'])) {
 if ($refresh && !$dryRun) {
     Database::run(
         "UPDATE import_journal
-            SET statut = 'a-importer', titre = NULL, code = NULL, auteur = NULL,
-                type = NULL, nom = NULL, chant = NULL
+            SET statut = 'a-importer', titre = NULL, code = NULL, code_repertoire = NULL,
+                auteur = NULL, type = NULL, nom = NULL, chant = NULL
           WHERE source = ? AND statut <> 'enumere'",
         [SOURCE]
     );
@@ -192,13 +198,14 @@ if ($faire('fetch')) {
 
         $avecParoles++;
         majJournalDonnees($ref, [
-            'titre'     => tronque($data['titre'], 255),
-            'code'      => tronque($data['code'], 60),
-            'auteur'    => tronque($data['auteur'], 190),
-            'type'      => $data['type'],
-            'categorie' => tronque($data['categorie'], 255),
-            'nom'       => tronque(Site::nomSection($data['categorie'], $data['type']), 120),
-            'chant'     => $data['chant'],
+            'titre'           => tronque($data['titre'], 255),
+            'code'            => tronque($data['code'], 60),
+            'code_repertoire' => $data['code_repertoire'] !== null ? tronque($data['code_repertoire'], 60) : null,
+            'auteur'          => tronque($data['auteur'], 190),
+            'type'            => $data['type'],
+            'categorie'       => tronque($data['categorie'], 255),
+            'nom'             => tronque(Site::nomSection($data['categorie'], $data['type']), 120),
+            'chant'           => $data['chant'],
         ], $dryRun);
 
         if (!$quiet && $fait % 25 === 0) {
@@ -216,12 +223,23 @@ if ($faire('import')) {
     $log("\n=== Passe 3 : création des fiches ===");
 
     $aImporter = Database::all(
-        "SELECT ref, url, titre, code, auteur, type, nom, chant, chant_id
+        "SELECT ref, url, titre, code, code_repertoire, auteur, type, nom, chant, chant_id
            FROM import_journal
           WHERE source = ? AND statut = 'avec-paroles'",
         [SOURCE]
     );
     $log(sprintf('%d fiches à créer / mettre à jour.', count($aImporter)));
+
+    // Chants déjà importés depuis catechisme-emmanuel.com, indexés par code IEV :
+    // une fiche chantonseneglise portant le même code vient les compléter plutôt
+    // que créer un doublon (l'import Emmanuel se lance en premier).
+    $fichesEmmanuel = [];
+    foreach (Database::all(
+        "SELECT code_repertoire, chant_id FROM import_journal
+          WHERE source = 'catechisme-emmanuel' AND code_repertoire IS NOT NULL AND chant_id IS NOT NULL"
+    ) as $e) {
+        $fichesEmmanuel[$e['code_repertoire']] = (int) $e['chant_id'];
+    }
 
     if ($aImporter === []) {
         $enAttente = (int) Database::value(
@@ -239,10 +257,30 @@ if ($faire('import')) {
         }
     }
 
-    $crees = $majs = 0;
+    $crees = $majs = $completes = 0;
 
     foreach ($aImporter as $j) {
         $chant  = Site::formatParoles((string) $j['chant']);
+        $iev    = $j['code_repertoire'] !== null && $j['code_repertoire'] !== '' ? (string) $j['code_repertoire'] : null;
+        $cibleEmmanuel = $iev !== null ? ($fichesEmmanuel[$iev] ?? null) : null;
+
+        // Rapprochement Emmanuel : compléter la fiche existante, pas de doublon.
+        // (idempotent : une reprise re-complète la même fiche.)
+        if ($cibleEmmanuel !== null
+            && ($j['chant_id'] === null || (int) $j['chant_id'] === $cibleEmmanuel)
+        ) {
+            $completes++;
+            if (!$dryRun) {
+                completerFicheEmmanuel($cibleEmmanuel, $j, $chant);
+                Database::run(
+                    "UPDATE import_journal SET statut = 'complete', chant_id = ?, traite_le = NOW()
+                      WHERE source = ? AND ref = ?",
+                    [$cibleEmmanuel, SOURCE, (string) $j['ref']]
+                );
+            }
+            continue;
+        }
+
         $ligne = [
             'feuille_id'  => null,
             'nom'         => (string) ($j['nom'] ?: 'Chant'),
@@ -276,7 +314,10 @@ if ($faire('import')) {
         );
     }
 
-    $log(sprintf('Passe 3 terminée : %d créées, %d mises à jour.', $crees, $majs));
+    $log(sprintf(
+        'Passe 3 terminée : %d créées, %d mises à jour, %d fiches Emmanuel complétées.',
+        $crees, $majs, $completes
+    ));
 }
 
 // --- Bilan --------------------------------------------------------------
@@ -478,6 +519,45 @@ function reclasser(bool $dryRun): int
     );
 
     return 0;
+}
+
+/**
+ * Complète une fiche importée depuis catechisme-emmanuel.com avec les données de
+ * chantonseneglise.fr qui lui manquent : cote Secli, auteur, paroles plus
+ * complètes, et classement (type / nom) si la fiche Emmanuel était restée sur le
+ * type par défaut. L'URL de la fiche Emmanuel est conservée.
+ *
+ * @param array<string,mixed> $j  ligne import_journal (source chantonseneglise)
+ */
+function completerFicheEmmanuel(int $chantId, array $j, string $chant): void
+{
+    $actuel = Database::one('SELECT type, nom, code, auteur, nb_couplets FROM chants WHERE id = ?', [$chantId]);
+    if ($actuel === null) {
+        return;
+    }
+
+    $maj = [];
+    if (trim((string) $actuel['code']) === '' && (string) $j['code'] !== '') {
+        $maj['code'] = tronque((string) $j['code'], 60);
+    }
+    if (trim((string) $actuel['auteur']) === '' && (string) $j['auteur'] !== '') {
+        $maj['auteur'] = tronque((string) $j['auteur'], 190);
+    }
+    $couplets = count_couplets($chant, false);
+    if ($couplets > (int) $actuel['nb_couplets']) {
+        $maj['chant']       = $chant;
+        $maj['nb_couplets'] = $couplets;
+    }
+    // Le type d'un chant Emmanuel est souvent resté sur le défaut (« entree ») :
+    // chantonseneglise le classe depuis un vrai libellé liturgique.
+    if ($actuel['type'] === Site::TYPE_DEFAUT && (string) $j['type'] !== '' && $j['type'] !== Site::TYPE_DEFAUT) {
+        $maj['type'] = (string) $j['type'];
+        $maj['nom']  = (string) ($j['nom'] ?: $actuel['nom']);
+    }
+
+    if ($maj !== []) {
+        Database::update('chants', $maj, ['id' => $chantId]);
+    }
 }
 
 /**

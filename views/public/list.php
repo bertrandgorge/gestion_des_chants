@@ -3,9 +3,6 @@
 /** @var array $clocher @var array $paroisse @var array $feuilles */
 ?>
 <header class="feuille-cartouche">
-    <?php if (!empty($paroisse['logo'])): ?>
-        <img src="/<?= e($paroisse['logo']) ?>" alt="" class="feuille-logo">
-    <?php endif; ?>
     <div class="feuille-paroisse"><?= e($paroisse['nom']) ?></div>
     <div class="feuille-clocher"><?= e($clocher['nom']) ?></div>
 </header>

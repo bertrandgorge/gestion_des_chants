@@ -144,6 +144,47 @@ final class ImportChantonsEnEgliseTest extends TestCase
         );
         $this->assertSame("R/ Amen", Site::formatParoles("R- Amen"));
         $this->assertSame("R/ Amen", Site::formatParoles("R : Amen"));
+        // Tirets typographiques « – » / « — » autour du numéro (catechisme-emmanuel).
+        $this->assertSame(
+            "1. Peuple fidèle\n\n2. Verbe, Lumière",
+            Site::formatParoles("1 – Peuple fidèle\n\n2 — Verbe, Lumière")
+        );
+    }
+
+    public function testParseVoirTexteReleveLeCodeRepertoireEmmanuel(): void
+    {
+        $corps = '
+            <div>Auteur : Communauté de l&#039;Emmanuel</div>
+            <div>Editeur : Éditions de l&#039;Emmanuel</div>
+            <div>Cote Secli : K68-43</div>
+            <div class="mt-3">Esprit Saint
+
+            Réf. IEV 19-06
+            </div>';
+        $paroles = "1<br />\nAuprès de Marie, ensemble au Cénacle,<br />\nNous levons les yeux vers le ciel.";
+
+        $data = Site::parseVoirTexte($this->voirTexte('Ensemble au cénacle (Auprès de Marie) - K68-43', $corps, $paroles));
+
+        $this->assertNotNull($data);
+        $this->assertSame('K68-43', $data['code']);
+        $this->assertSame("Éditions de l'Emmanuel", $data['editeur']);
+        $this->assertSame('IEV 19-06', $data['code_repertoire']);
+        // Le « Réf. IEV … » est retiré de la catégorie servant au classement.
+        $this->assertSame('Esprit Saint', $data['categorie']);
+    }
+
+    public function testParseVoirTexteSansEditeurEmmanuelPasDeCodeRepertoire(): void
+    {
+        $corps = '<div>Auteur : X</div><div>Editeur : Éditions de l\'Atelier</div>
+                  <div class="mt-3">Communion Réf. IEV 12-09</div>';
+        $data = Site::parseVoirTexte($this->voirTexte(
+            'Un chant',
+            $corps,
+            "Couplet assez long pour passer le filtre de longueur minimale."
+        ));
+
+        $this->assertNotNull($data);
+        $this->assertNull($data['code_repertoire']);
     }
 
     public function testParseVoirTexteCodeMultipleDansLeTitre(): void

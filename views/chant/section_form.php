@@ -8,7 +8,7 @@ $retour = '/app/feuilles/' . $section['feuille_id'];
 $estChant = in_array($comportement, ['chant', 'ordinaire'], true);
 $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
 ?>
-<div class="mb-3"><a href="<?= e($retour) ?>" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Retour à la feuille</a></div>
+<div class="mb-3"><a href="<?= e($retour) ?>" class="small text-decoration-none" data-save-return><i class="bi bi-arrow-left"></i> Retour à la feuille</a></div>
 
 <h1 class="h4 mb-1"><?= e($section['nom']) ?></h1>
 <p class="text-body-secondary small">
@@ -43,7 +43,7 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
         <input type="hidden" name="url" value="<?= e($section['url'] ?? '') ?>" data-url-field>
         <div class="form-text<?= empty($section['url']) ? ' d-none' : '' ?>" data-url-display>
             <i class="bi bi-link-45deg"></i>
-            <a href="<?= e($section['url'] ?? '') ?>" target="_blank" rel="noopener noreferrer" data-url-link><?= e($section['url'] ?? 'dsds') ?></a>
+            <a href="<?= e($section['url'] ?? '') ?>" target="_blank" rel="noopener noreferrer" data-url-link><?= e($section['url'] ?? '') ?></a>
         </div>
         <div>
             <label class="form-label" for="chant">Texte du chant</label>

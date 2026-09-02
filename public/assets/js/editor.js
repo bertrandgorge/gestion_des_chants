@@ -103,6 +103,20 @@
     /* ---------- Page « section » : aperçu + autocomplétion ---------- */
     var form = document.querySelector('[data-section-form]');
     if (form) {
+        // « Retour à la feuille » : on enregistre la section avant de naviguer.
+        // L'envoi du formulaire redirige déjà vers la feuille après sauvegarde.
+        var saveReturn = document.querySelector('[data-save-return]');
+        if (saveReturn) {
+            saveReturn.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+            });
+        }
+
         var chantInput = form.querySelector('[data-chant-input]');
         var preview = form.querySelector('[data-chant-preview]');
         if (chantInput && preview) {
@@ -137,7 +151,11 @@
             if (field) field.value = url || '';
             var display = form.querySelector('[data-url-display]');
             var link = form.querySelector('[data-url-link]');
-            if (link) link.href = url || '';
+            if (link) {
+                link.href = url || '';
+                link.textContent = url || '';
+            }
+            
             if (display) display.classList.toggle('d-none', !url);
         }
 

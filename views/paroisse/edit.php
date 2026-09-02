@@ -7,7 +7,7 @@ use App\Csrf;
 
 <div class="row g-4">
     <div class="col-lg-7">
-        <form method="post" action="/admin/paroisse" enctype="multipart/form-data" class="card card-body vstack gap-3">
+        <form method="post" action="/admin/paroisse" class="card card-body vstack gap-3">
             <?= Csrf::field() ?>
             <div>
                 <label class="form-label" for="nom">Nom</label>
@@ -20,14 +20,6 @@ use App\Csrf;
                     <input type="text" class="form-control" id="slug" name="slug" value="<?= e($paroisse['slug']) ?>" pattern="[a-z0-9\-]+" required>
                 </div>
                 <div class="form-text">Lettres minuscules, chiffres et tirets. Modifier le slug change toutes les URL publiques.</div>
-            </div>
-            <div>
-                <label class="form-label" for="logo">Logo</label>
-                <?php if (!empty($paroisse['logo'])): ?>
-                    <div class="mb-2"><img src="/<?= e($paroisse['logo']) ?>" alt="Logo" style="max-height:80px"></div>
-                <?php endif; ?>
-                <input type="file" class="form-control" id="logo" name="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml">
-                <div class="form-text">PNG, JPG, WEBP ou SVG — 2 Mo maximum.</div>
             </div>
             <div><button class="btn btn-primary">Enregistrer</button></div>
         </form>

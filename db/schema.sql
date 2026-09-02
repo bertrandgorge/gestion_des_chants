@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS paroisses (
     id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
     nom        VARCHAR(150) NOT NULL,
     slug       VARCHAR(100) NOT NULL,
-    logo       VARCHAR(255) DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uniq_paroisses_slug (slug)
@@ -117,19 +116,21 @@ CREATE TABLE IF NOT EXISTS chants (
 -- fois de suivi (relance sans refaire les requêtes) et de zone de préparation :
 -- l'import se fait en 2 passes (récupération réseau, puis création des fiches).
 CREATE TABLE IF NOT EXISTS import_journal (
-    source     VARCHAR(40)  NOT NULL,             -- ex. « chantonseneglise »
-    ref        VARCHAR(60)  NOT NULL,             -- identifiant du chant sur le site source
-    statut     VARCHAR(20)  NOT NULL,             -- a-importer | avec-paroles | sans-paroles | importe | erreur
-    chant_id   INT UNSIGNED DEFAULT NULL,         -- ligne chants créée le cas échéant
-    url        VARCHAR(255) DEFAULT NULL,
-    titre      VARCHAR(255) DEFAULT NULL,         -- données parsées (passe 2), utilisées à la passe 3
-    code       VARCHAR(60)  DEFAULT NULL,
-    auteur     VARCHAR(190) DEFAULT NULL,
-    type       VARCHAR(60)  DEFAULT NULL,         -- slug App\SectionTypes::DEFAUT (entree, communion…)
-    categorie  VARCHAR(255) DEFAULT NULL,         -- « type » brut lu sur le site (re-classification hors-ligne)
-    nom        VARCHAR(120) DEFAULT NULL,
-    chant      LONGTEXT     DEFAULT NULL,
-    traite_le  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    source          VARCHAR(40)  NOT NULL,        -- ex. « chantonseneglise », « catechisme-emmanuel »
+    ref             VARCHAR(190) NOT NULL,        -- identifiant du chant sur le site source (id ou slug)
+    statut          VARCHAR(20)  NOT NULL,        -- a-importer | avec-paroles | sans-paroles | importe | complete | erreur
+    chant_id        INT UNSIGNED DEFAULT NULL,    -- ligne chants créée / complétée le cas échéant
+    url             VARCHAR(255) DEFAULT NULL,
+    titre           VARCHAR(255) DEFAULT NULL,    -- données parsées (passe 2), utilisées à la passe 3
+    code            VARCHAR(60)  DEFAULT NULL,
+    code_repertoire VARCHAR(60)  DEFAULT NULL,    -- code IEV (Emmanuel) : rapprochement entre imports
+    auteur          VARCHAR(190) DEFAULT NULL,
+    type            VARCHAR(60)  DEFAULT NULL,    -- slug App\SectionTypes::DEFAUT (entree, communion…)
+    categorie       VARCHAR(255) DEFAULT NULL,    -- libellé brut lu sur le site (re-classification hors-ligne)
+    nom             VARCHAR(120) DEFAULT NULL,
+    chant           LONGTEXT     DEFAULT NULL,
+    traite_le       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (source, ref),
-    KEY idx_import_journal_statut (source, statut)
+    KEY idx_import_journal_statut (source, statut),
+    KEY idx_import_journal_repertoire (code_repertoire)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
