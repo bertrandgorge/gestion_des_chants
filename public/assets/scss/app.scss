@@ -1,0 +1,144 @@
+// Feuille de style principale.
+// Compilée vers ../css/app.css par « npm run css » (fichier commité).
+
+// --- Personnalisation Bootstrap (avant l'import) ---------------------
+$font-family-sans-serif: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+$primary: #5b4b8a; // violet liturgique discret
+
+@import "bootstrap/scss/bootstrap";
+
+// --- Écrans d'authentification -------------------------------------
+.auth-body {
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    background: var(--bs-tertiary-bg);
+    padding: 1.5rem;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--bs-body-bg);
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .1), 0 8px 24px rgba(0, 0, 0, .06);
+}
+
+// --- Interface chantre --------------------------------------------
+.drag-handle {
+    user-select: none;
+    letter-spacing: -3px;
+}
+
+.chant-preview,
+.feuille-chant-texte {
+    .chant-partie { margin-bottom: .85rem; white-space: normal; }
+    .chant-refrain { color: var(--bs-emphasis-color); }
+}
+
+.chant-preview:empty::before {
+    content: "L'aperçu apparaîtra ici.";
+    color: var(--bs-secondary-color);
+}
+
+.autocomplete-panel {
+    position: absolute;
+    z-index: 1050;
+    width: 100%;
+    max-height: 320px;
+    overflow-y: auto;
+    background: var(--bs-body-bg);
+}
+
+.anciennes-mois {
+    top: 0;
+    z-index: 2;
+}
+
+.gdc-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 1.5rem;
+    transform: translateX(-50%) translateY(1rem);
+    background: var(--bs-emphasis-color);
+    color: var(--bs-body-bg);
+    padding: .6rem 1.1rem;
+    border-radius: 2rem;
+    font-size: .9rem;
+    opacity: 0;
+    transition: opacity .25s, transform .25s;
+    z-index: 1080;
+
+    &.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+// --- Interface paroissien (sobre, mobile first) -------------------
+.public-body {
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+}
+
+.public-toolbar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    gap: .4rem;
+    justify-content: flex-end;
+    padding: .5rem .75rem;
+    background: var(--bs-body-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    z-index: 10;
+}
+
+.public-main {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 1.25rem 1.15rem 4rem;
+    font-size: calc(1rem * var(--chant-scale, 1));
+    line-height: 1.6;
+}
+
+.feuille-cartouche {
+    text-align: center;
+    padding: 1rem 0 1.5rem;
+    border-bottom: 2px solid var(--bs-border-color);
+    margin-bottom: 1.5rem;
+
+    .feuille-logo { max-height: 72px; margin-bottom: .5rem; }
+    .feuille-paroisse { font-weight: 600; }
+    .feuille-clocher { color: var(--bs-secondary-color); }
+    .feuille-date { color: var(--bs-secondary-color); text-transform: capitalize; }
+    .feuille-titre { font-size: 1.3em; margin-top: .6rem; }
+}
+
+.feuille-section {
+    margin-bottom: 2rem;
+
+    .feuille-section-titre {
+        font-size: 1.05em;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: var(--bs-secondary-color);
+        border-bottom: 1px solid var(--bs-border-color);
+        padding-bottom: .25rem;
+        margin-bottom: .75rem;
+    }
+
+    .feuille-chant-meta { margin-bottom: .5rem; }
+    .feuille-ref { color: var(--bs-secondary-color); font-style: italic; margin-bottom: .5rem; }
+    .feuille-lecture-titre { font-weight: 600; }
+    .feuille-lecture-contenu p { margin-bottom: .7rem; }
+    .feuille-acclamation { font-weight: 600; margin-bottom: .5rem; }
+}
+
+.feuille-footer {
+    margin-top: 2.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--bs-border-color);
+    text-align: center;
+    font-size: .85em;
+}
+
+.feuille-choix .list-group-item { text-transform: capitalize; }

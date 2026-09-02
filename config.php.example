@@ -1,0 +1,36 @@
+<?php
+
+/**
+ * Configuration de l'application.
+ *
+ * Copiez ce fichier en « config.php » et renseignez vos valeurs.
+ * config.php n'est PAS versionné (voir .gitignore) : il contient les secrets.
+ *
+ * Sur O2Switch : renseignez la base de données créée depuis cPanel et le compte SMTP.
+ */
+
+return [
+    'db' => [
+        'host'    => 'localhost',
+        'name'    => 'gestion_des_chants',
+        'user'    => 'root',
+        'pass'    => '',
+        'charset' => 'utf8mb4',
+    ],
+
+    'smtp' => [
+        'host'      => 'smtp.exemple.fr',
+        'port'      => 587,
+        'user'      => 'no-reply@exemple.fr',
+        'pass'      => '',
+        'secure'    => 'tls',            // 'tls', 'ssl' ou '' (aucun)
+        'from'      => 'no-reply@exemple.fr',
+        'from_name' => 'Feuilles de messe',
+    ],
+
+    'app' => [
+        // URL publique de l'application, SANS slash final. Sert aux liens des emails
+        // et aux QR codes des clochers.
+        'base_url' => 'https://exemple.fr',
+    ],
+];
