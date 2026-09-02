@@ -38,7 +38,7 @@ final class UtilisateurController
             redirect('/admin/utilisateurs');
         }
 
-        $userId = Utilisateur::create($email, null, $type, Auth::paroisseId());
+        $userId = Utilisateur::create($email, $type, Auth::paroisseId());
         $this->sendInvitation($userId, $email);
 
         flash('success', "Invitation envoyée à {$email}.");
@@ -49,7 +49,7 @@ final class UtilisateurController
     {
         Auth::requireAdmin();
         $user = $this->ownUser((int) $params['id']);
-        if (!empty($user['pass_hash'])) {
+        if (!empty($user['derniere_connexion_at'])) {
             flash('error', 'Ce compte est déjà actif.');
             redirect('/admin/utilisateurs');
         }
@@ -84,7 +84,7 @@ final class UtilisateurController
             flash('error', 'Vous ne pouvez pas supprimer votre propre compte.');
             redirect('/admin/utilisateurs');
         }
-        if ($user['type'] === 'admin' && !empty($user['pass_hash']) && Utilisateur::countAdmins(Auth::paroisseId()) <= 1) {
+        if ($user['type'] === 'admin' && !empty($user['derniere_connexion_at']) && Utilisateur::countAdmins(Auth::paroisseId()) <= 1) {
             flash('error', 'Impossible de supprimer le dernier administrateur.');
             redirect('/admin/utilisateurs');
         }

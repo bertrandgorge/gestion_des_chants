@@ -43,14 +43,14 @@ use App\Csrf;
                     </form>
                 </td>
                 <td>
-                    <?php if (empty($u['pass_hash'])): ?>
+                    <?php if (empty($u['derniere_connexion_at'])): ?>
                         <span class="badge text-bg-warning">Invitation en attente</span>
                     <?php else: ?>
                         <span class="badge text-bg-success">Actif</span>
                     <?php endif; ?>
                 </td>
                 <td class="text-end">
-                    <?php if (empty($u['pass_hash'])): ?>
+                    <?php if (empty($u['derniere_connexion_at'])): ?>
                         <form method="post" action="/admin/utilisateurs/<?= $u['id'] ?>/relancer" class="d-inline">
                             <?= Csrf::field() ?>
                             <button class="btn btn-sm btn-outline-secondary">Relancer</button>

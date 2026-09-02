@@ -64,10 +64,10 @@ final class Mailer
         return self::send($to, "Invitation — feuilles de messe ({$paroisse})", $body);
     }
 
-    public static function reset(string $to, string $lien): bool
+    public static function lienConnexion(string $to, string $lien): bool
     {
-        $body = view('emails/reset', ['lien' => $lien]);
+        $body = view('emails/connexion', ['lien' => $lien]);
 
-        return self::send($to, 'Réinitialisation de votre mot de passe', $body);
+        return self::send($to, 'Votre lien de connexion — feuilles de messe', $body);
     }
 }

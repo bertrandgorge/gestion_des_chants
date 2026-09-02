@@ -27,19 +27,19 @@ final class Utilisateur
         );
     }
 
-    public static function create(string $email, ?string $passHash, string $type, int $paroisseId): int
+    public static function create(string $email, string $type, int $paroisseId): int
     {
         return Database::insert('utilisateurs', [
             'email'       => mb_strtolower($email),
-            'pass_hash'   => $passHash,
             'type'        => $type,
             'paroisse_id' => $paroisseId,
         ]);
     }
 
-    public static function setPassword(int $id, string $passHash): void
+    /** Marque le compte comme actif : date de dernière connexion à maintenant. */
+    public static function markConnected(int $id): void
     {
-        Database::update('utilisateurs', ['pass_hash' => $passHash], ['id' => $id]);
+        Database::update('utilisateurs', ['derniere_connexion_at' => date('Y-m-d H:i:s')], ['id' => $id]);
     }
 
     public static function setType(int $id, string $type): void
@@ -55,7 +55,7 @@ final class Utilisateur
     public static function countAdmins(int $paroisseId): int
     {
         return (int) Database::value(
-            "SELECT COUNT(*) FROM utilisateurs WHERE paroisse_id = ? AND type = 'admin' AND pass_hash IS NOT NULL",
+            "SELECT COUNT(*) FROM utilisateurs WHERE paroisse_id = ? AND type = 'admin' AND derniere_connexion_at IS NOT NULL",
             [$paroisseId]
         );
     }

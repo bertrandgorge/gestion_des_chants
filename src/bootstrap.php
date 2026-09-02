@@ -32,8 +32,12 @@ App\Database::configure($GLOBALS['config']['db']);
 
 // --- Session ----------------------------------------------------------
 if (PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
+    // Connexion « illimitée » : la session et son cookie vivent longtemps ;
+    // le cookie App\Auth::COOKIE prend le relais si la session est perdue.
+    $sessionTtl = 400 * 86400;
+    ini_set('session.gc_maxlifetime', (string) $sessionTtl);
     session_set_cookie_params([
-        'lifetime' => 0,
+        'lifetime' => $sessionTtl,
         'path'     => '/',
         'httponly' => true,
         'samesite' => 'Lax',

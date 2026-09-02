@@ -9,7 +9,7 @@ use App\Models\Paroisse;
 
 final class ParoisseController
 {
-    private const RESERVES = ['app', 'admin', 'login', 'logout', 'register', 'invitation', 'mot-de-passe', 'assets'];
+    private const RESERVES = ['app', 'admin', 'login', 'logout', 'register', 'invitation', 'connexion', 'assets'];
 
     public function edit(): void
     {

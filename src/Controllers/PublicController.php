@@ -65,6 +65,8 @@ final class PublicController
             ]),
             'theme'    => $this->theme(),
             'scale'    => $this->scale(),
+            'presentation' => true,
+            'sections' => $sections,
             'pageTitle' => $feuille['titre_liturgique'] ?: ('Feuille de messe — ' . $feuille['clocher_nom']),
         ]);
     }

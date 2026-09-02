@@ -12,7 +12,10 @@ use App\Models\Utilisateur;
 
 final class AuthController
 {
-    private const RESERVES = ['app', 'admin', 'login', 'logout', 'register', 'invitation', 'mot-de-passe', 'assets'];
+    private const RESERVES = ['app', 'admin', 'login', 'logout', 'register', 'invitation', 'connexion', 'assets'];
+
+    /** Durée de validité d'un lien de connexion. */
+    private const LIEN_TTL = 1800; // 30 minutes
 
     public function showLogin(): void
     {
@@ -22,18 +25,19 @@ final class AuthController
         echo view('layout/auth', ['content' => view('auth/login'), 'titre' => 'Connexion']);
     }
 
+    /** Envoie un lien de connexion par email (aucun mot de passe). */
     public function login(): void
     {
-        $email = (string) input('email', '');
-        $password = (string) input('password', '');
+        $email = mb_strtolower((string) input('email', ''));
+        $user = Utilisateur::findByEmail($email);
 
-        if (Auth::attempt($email, $password)) {
-            clear_old();
-            redirect('/app');
+        if ($user !== null) {
+            Token::invalidatePending((int) $user['id'], 'login');
+            $raw = Token::issue((int) $user['id'], 'login', date('Y-m-d H:i:s', time() + self::LIEN_TTL));
+            Mailer::lienConnexion($email, base_url('/connexion/' . $raw));
         }
 
-        remember_old(['email' => $email]);
-        flash('error', 'Identifiants incorrects.');
+        flash('success', 'Si un compte existe pour cette adresse, un email contenant un lien de connexion vient d\'être envoyé.');
         redirect('/login');
     }
 
@@ -54,15 +58,11 @@ final class AuthController
     public function register(): void
     {
         $email = mb_strtolower((string) input('email', ''));
-        $password = (string) input('password', '');
         $paroisseNom = (string) input('paroisse', '');
 
         $errors = [];
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Adresse email invalide.';
-        }
-        if (mb_strlen($password) < 8) {
-            $errors[] = 'Le mot de passe doit faire au moins 8 caractères.';
         }
         if ($paroisseNom === '') {
             $errors[] = 'Le nom de la paroisse est obligatoire.';
@@ -79,7 +79,7 @@ final class AuthController
 
         $slug = $this->slugUnique(slugify($paroisseNom));
         $paroisseId = Paroisse::create($paroisseNom, $slug);
-        $userId = Utilisateur::create($email, password_hash($password, PASSWORD_DEFAULT), 'admin', $paroisseId);
+        $userId = Utilisateur::create($email, 'admin', $paroisseId);
 
         clear_old();
         Auth::login($userId);
@@ -87,93 +87,32 @@ final class AuthController
         redirect('/app');
     }
 
-    public function showInvitation(array $params): void
+    public function connexion(array $params): void
     {
-        $token = Token::findValid($params['token'], 'invitation');
+        $this->consumeAndLogin($params['token'], 'login');
+    }
+
+    public function invitation(array $params): void
+    {
+        $this->consumeAndLogin($params['token'], 'invitation');
+    }
+
+    /**
+     * Consomme le lien reçu par email et connecte directement l'utilisateur
+     * (pas de page intermédiaire).
+     */
+    private function consumeAndLogin(string $rawToken, string $type): void
+    {
+        $token = Token::findValid($rawToken, $type);
         if ($token === null) {
             echo view('layout/auth', ['content' => view('auth/token_invalide'), 'titre' => 'Lien expiré']);
 
             return;
         }
-        echo view('layout/auth', [
-            'content' => view('auth/invitation', ['email' => $token['user_email'], 'token' => $params['token']]),
-            'titre'   => 'Choisir un mot de passe',
-        ]);
-    }
 
-    public function acceptInvitation(array $params): void
-    {
-        $token = Token::findValid($params['token'], 'invitation');
-        if ($token === null) {
-            flash('error', 'Lien invalide ou expiré.');
-            redirect('/login');
-        }
-
-        $password = (string) input('password', '');
-        if (mb_strlen($password) < 8) {
-            flash('error', 'Le mot de passe doit faire au moins 8 caractères.');
-            redirect('/invitation/' . $params['token']);
-        }
-
-        Utilisateur::setPassword((int) $token['utilisateur_id'], password_hash($password, PASSWORD_DEFAULT));
         Token::consume((int) $token['id']);
         Auth::login((int) $token['utilisateur_id']);
-        flash('success', 'Votre compte est activé.');
         redirect('/app');
-    }
-
-    public function showForgot(): void
-    {
-        echo view('layout/auth', ['content' => view('auth/forgot'), 'titre' => 'Mot de passe oublié']);
-    }
-
-    public function forgot(): void
-    {
-        $email = mb_strtolower((string) input('email', ''));
-        $user = Utilisateur::findByEmail($email);
-
-        if ($user !== null && !empty($user['pass_hash'])) {
-            Token::invalidatePending((int) $user['id'], 'reset');
-            $raw = Token::issue((int) $user['id'], 'reset', date('Y-m-d H:i:s', time() + 3600));
-            Mailer::reset($email, base_url('/mot-de-passe/reset/' . $raw));
-        }
-
-        flash('success', 'Si un compte existe pour cette adresse, un email vient d\'être envoyé.');
-        redirect('/login');
-    }
-
-    public function showReset(array $params): void
-    {
-        $token = Token::findValid($params['token'], 'reset');
-        if ($token === null) {
-            echo view('layout/auth', ['content' => view('auth/token_invalide'), 'titre' => 'Lien expiré']);
-
-            return;
-        }
-        echo view('layout/auth', [
-            'content' => view('auth/reset', ['token' => $params['token']]),
-            'titre'   => 'Nouveau mot de passe',
-        ]);
-    }
-
-    public function reset(array $params): void
-    {
-        $token = Token::findValid($params['token'], 'reset');
-        if ($token === null) {
-            flash('error', 'Lien invalide ou expiré.');
-            redirect('/login');
-        }
-
-        $password = (string) input('password', '');
-        if (mb_strlen($password) < 8) {
-            flash('error', 'Le mot de passe doit faire au moins 8 caractères.');
-            redirect('/mot-de-passe/reset/' . $params['token']);
-        }
-
-        Utilisateur::setPassword((int) $token['utilisateur_id'], password_hash($password, PASSWORD_DEFAULT));
-        Token::consume((int) $token['id']);
-        flash('success', 'Mot de passe modifié, vous pouvez vous connecter.');
-        redirect('/login');
     }
 
     private function slugUnique(string $base): string

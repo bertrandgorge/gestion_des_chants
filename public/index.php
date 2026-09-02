@@ -28,12 +28,8 @@ $router->post('/login', [AuthController::class, 'login']);
 $router->post('/logout', [AuthController::class, 'logout']);
 $router->get('/register', [AuthController::class, 'showRegister']);
 $router->post('/register', [AuthController::class, 'register']);
-$router->get('/invitation/{token}', [AuthController::class, 'showInvitation']);
-$router->post('/invitation/{token}', [AuthController::class, 'acceptInvitation']);
-$router->get('/mot-de-passe/oubli', [AuthController::class, 'showForgot']);
-$router->post('/mot-de-passe/oubli', [AuthController::class, 'forgot']);
-$router->get('/mot-de-passe/reset/{token}', [AuthController::class, 'showReset']);
-$router->post('/mot-de-passe/reset/{token}', [AuthController::class, 'reset']);
+$router->get('/connexion/{token}', [AuthController::class, 'connexion']);
+$router->get('/invitation/{token}', [AuthController::class, 'invitation']);
 
 // --- Administration de la paroisse (admin) ----------------------------
 $router->get('/admin/paroisse', [ParoisseController::class, 'edit']);
