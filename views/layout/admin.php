@@ -1,11 +1,7 @@
 <?php
 
 /** @var string $content */
-use App\Auth;
-use App\Csrf;
-
 $active = $active ?? '';
-$user = Auth::user();
 ?>
 <!doctype html>
 <html lang="fr" data-bs-theme="light">
@@ -15,21 +11,9 @@ $user = Auth::user();
     <title><?= e($titre ?? 'Administration') ?> — Paroisse</title>
     <link rel="stylesheet" href="/assets/css/app.css">
 </head>
-<body>
-<nav class="navbar navbar-expand bg-body-tertiary border-bottom">
-    <div class="container">
-        <a class="navbar-brand d-inline-flex align-items-center gap-1" href="/app" title="Retour aux feuilles"><i class="bi bi-arrow-left"></i> Feuilles</a>
-        <span class="navbar-text fw-semibold">Administration</span>
-        <div class="ms-auto d-flex align-items-center gap-2">
-            <span class="d-none d-sm-inline text-body-secondary small"><?= e($user['email']) ?></span>
-            <form method="post" action="/logout" class="d-inline">
-                <?= Csrf::field() ?>
-                <button class="btn btn-sm btn-outline-secondary">Déconnexion</button>
-            </form>
-        </div>
-    </div>
-</nav>
-<main class="container py-4">
+<body class="d-flex flex-column min-vh-100">
+<?php $section = 'admin'; require APP_ROOT . '/views/partials/navbar.php'; ?>
+<main class="container py-4 flex-grow-1">
     <ul class="nav nav-pills mb-4 gap-1">
         <li class="nav-item"><a class="nav-link <?= $active === 'paroisse' ? 'active' : '' ?>" href="/admin/paroisse">Paroisse</a></li>
         <li class="nav-item"><a class="nav-link <?= $active === 'utilisateurs' ? 'active' : '' ?>" href="/admin/utilisateurs">Utilisateurs</a></li>
@@ -38,6 +22,7 @@ $user = Auth::user();
     <?php require APP_ROOT . '/views/partials/flash.php'; ?>
     <?= $content ?>
 </main>
+<?php require APP_ROOT . '/views/partials/footer-github.php'; ?>
 <script src="/assets/js/vendor/bootstrap.bundle.min.js"></script>
 <script src="/assets/js/app.js"></script>
 </body>

@@ -13,6 +13,7 @@
     <?php require APP_ROOT . '/views/partials/flash.php'; ?>
     <?= $content ?>
 </main>
+<?php require APP_ROOT . '/views/partials/footer-github.php'; ?>
 <script src="/assets/js/vendor/bootstrap.bundle.min.js"></script>
 </body>
 </html>
