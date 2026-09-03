@@ -67,7 +67,7 @@ final class PublicController
             'scale'    => $this->scale(),
             'presentation' => true,
             'sections' => $sections,
-            'pageTitle' => $feuille['titre_liturgique'] ?: ('Feuille de messe — ' . $feuille['clocher_nom']),
+            'pageTitle' => $feuille['clocher_nom'] . ($feuille['semaine'] ? ' — ' . $feuille['semaine'] : ''),
         ]);
     }
 

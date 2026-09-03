@@ -99,10 +99,57 @@
         var index = 0;
         var black = false;
         var presScale = 1;
+        var autoFit = true; // tant que vrai, la taille est recalculée automatiquement
+
+        function clampScale(s) {
+            return Math.min(3, Math.max(0.3, s));
+        }
+
+        // Plus grande échelle telle que la slide la plus chargée tienne dans
+        // l'écran (largeur ET hauteur). Toutes les slides partagent cette
+        // taille : rendu homogène, façon logiciel de projection.
+        function computeAutoScale() {
+            var vw = window.innerWidth, vh = window.innerHeight;
+            if (!slides.length || !vw || !vh) { return 1; }
+
+            var availW = vw * 0.84; // largeur utile : 100vw - 2 × 8vw de marge
+            var availH = vh * 0.76; // hauteur utile : 100vh - 2 × 12vh de marge
+            var gapV = 0.04 * vh;   // .pres-corps { gap: 4vh }
+            var best = Infinity;
+
+            presentation.classList.add('is-measuring');
+            slides.forEach(function (slide) {
+                var corps = slide.querySelector('.pres-corps');
+                if (!corps) { return; }
+                var gap = Math.max(0, corps.querySelectorAll('.pres-bloc').length - 1) * gapV;
+                var rect = corps.getBoundingClientRect();
+                var textH = rect.height - gap; // hauteur du texte seul, à l'échelle 1
+                var lineW = rect.width;        // plus longue ligne, à l'échelle 1
+                if (textH <= 0 || lineW <= 0) { return; }
+                // Les marges (gap) sont en vh et ne suivent pas l'échelle : on
+                // ne met à l'échelle que la part « texte » de la hauteur.
+                best = Math.min(best, (availH - gap) / textH, availW / lineW);
+            });
+            presentation.classList.remove('is-measuring');
+
+            if (!isFinite(best)) { return 1; }
+            return clampScale(Math.round(best * 0.97 * 100) / 100);
+        }
+
+        function applyAutoScale() {
+            presentation.style.setProperty('--pres-scale', 1);
+            presScale = computeAutoScale();
+            presentation.style.setProperty('--pres-scale', presScale);
+        }
 
         function bumpScale(delta) {
-            presScale = Math.min(3, Math.max(0.5, Math.round((presScale + delta) * 10) / 10));
+            autoFit = false; // l'utilisateur prend la main : plus de recalcul auto
+            presScale = clampScale(Math.round((presScale + delta) * 10) / 10);
             presentation.style.setProperty('--pres-scale', presScale);
+        }
+
+        function onResize() {
+            if (autoFit) { applyAutoScale(); }
         }
 
         function showSlide(i) {
@@ -131,10 +178,13 @@
 
         function enter() {
             if (!slides.length) { return; }
+            document.body.classList.add('presentation-active');
             showSlide(0);
             setBlack(false);
-            document.body.classList.add('presentation-active');
+            autoFit = true;
+            applyAutoScale();
             document.addEventListener('keydown', onKey, true);
+            window.addEventListener('resize', onResize);
             if (presentation.requestFullscreen) {
                 presentation.requestFullscreen().catch(function () {});
             }
@@ -145,6 +195,7 @@
             document.body.classList.remove('presentation-active');
             setBlack(false);
             document.removeEventListener('keydown', onKey, true);
+            window.removeEventListener('resize', onResize);
             if (document.fullscreenElement) {
                 document.exitFullscreen().catch(function () {});
             }
@@ -209,7 +260,18 @@
         });
 
         document.addEventListener('fullscreenchange', function () {
-            if (!document.fullscreenElement) { leave(); }
+            if (!document.fullscreenElement) { leave(); return; }
+            // Le passage en plein écran change la taille du viewport (donc les vh).
+            if (autoFit) { applyAutoScale(); }
         });
+
+        // La police « Inter » peut arriver après coup : on recalcule une fois prête.
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(function () {
+                if (autoFit && document.body.classList.contains('presentation-active')) {
+                    applyAutoScale();
+                }
+            });
+        }
     }
 })();

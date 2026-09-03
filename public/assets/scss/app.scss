@@ -418,6 +418,23 @@ body.presentation-active {
 
 .presentation { --pres-scale: 1; }
 
+// État transitoire : à l'ouverture, viewer.js rend toutes les slides
+// mesurables (hors flux visible) pour calculer la taille de texte qui
+// remplit au mieux l'écran. Les lignes ne sont pas coupées et le corps
+// se réduit à sa plus longue ligne, afin de mesurer largeur et hauteur
+// réelles du texte à l'échelle 1.
+.presentation.is-measuring .pres-slide {
+    display: flex;
+    visibility: hidden;
+}
+
+.presentation.is-measuring .pres-corps {
+    max-width: none;
+    width: max-content;
+}
+
+.presentation.is-measuring .pres-bloc { white-space: nowrap; }
+
 .pres-slide {
     position: absolute;
     inset: 0;
