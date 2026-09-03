@@ -95,7 +95,7 @@ $v = static fn (string $k): string => e($values[$k] ?? '');
                 <div class="col-sm-4">
                     <label class="form-label" for="smtp_secure">Chiffrement</label>
                     <select class="form-select" id="smtp_secure" name="smtp_secure">
-                        <?php foreach (['tls' => 'STARTTLS', 'ssl' => 'SSL/TLS', '' => 'Aucun'] as $val => $label): ?>
+                        <?php foreach (['ssl' => 'SSL/TLS', 'tls' => 'STARTTLS', '' => 'Aucun'] as $val => $label): ?>
                             <option value="<?= e($val) ?>" <?= ($values['smtp_secure'] ?? '') === $val ? 'selected' : '' ?>><?= e($label) ?></option>
                         <?php endforeach; ?>
                     </select>

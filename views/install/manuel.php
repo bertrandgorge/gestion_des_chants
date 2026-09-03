@@ -28,7 +28,7 @@
         <span class="small text-success" id="copie-ok" hidden>Copié ✓</span>
     </div>
 
-    <textarea id="contenu" class="form-control font-monospace" rows="26" readonly spellcheck="false"
+    <textarea id="contenu" class="form-control font-monospace" rows="34" readonly spellcheck="false"
               style="white-space: pre; overflow-wrap: normal; overflow-x: auto;"><?= e($contenu) ?></textarea>
 
     <div class="mt-4">

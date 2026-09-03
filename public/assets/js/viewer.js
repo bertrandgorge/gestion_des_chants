@@ -29,6 +29,50 @@
         });
     });
 
+    /* ---------- Pincer pour ajuster la taille du texte (mobile) ---------- */
+    (function () {
+        var startDist = 0, startScale = 1, pinching = false;
+
+        function distance(touches) {
+            var dx = touches[0].clientX - touches[1].clientX;
+            var dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        document.addEventListener('touchstart', function (e) {
+            if (e.touches.length === 2) {
+                pinching = true;
+                startDist = distance(e.touches);
+                startScale = currentScale();
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchmove', function (e) {
+            if (!pinching || e.touches.length !== 2) { return; }
+            e.preventDefault(); // empêche le zoom de la page
+            if (startDist > 0) {
+                applyScale(startScale * distance(e.touches) / startDist);
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchend', function (e) {
+            if (e.touches.length < 2) { pinching = false; }
+        });
+
+        // iOS Safari : événements « gesture » dédiés (ignore touch-action).
+        document.addEventListener('gesturestart', function (e) {
+            e.preventDefault();
+            pinching = true;
+            startScale = currentScale();
+        });
+        document.addEventListener('gesturechange', function (e) {
+            if (!pinching) { return; }
+            e.preventDefault();
+            applyScale(startScale * e.scale);
+        });
+        document.addEventListener('gestureend', function () { pinching = false; });
+    })();
+
     function effectiveTheme() {
         var explicit = root.getAttribute('data-bs-theme');
         if (explicit) return explicit;

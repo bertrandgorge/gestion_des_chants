@@ -137,7 +137,9 @@ Mêmes passes (`enum` / `fetch` / `import`) et mêmes options (`--phase`, `--lim
 5. Ouvrir le site dans un navigateur : tant que `config.php` n'existe pas, l'**assistant
    d'installation** (`/install`) s'affiche. Il permet de saisir la base de données et le
    SMTP, de tester la connexion et l'envoi d'email, puis écrit `config.php` et applique le
-   schéma. Une fois `config.php` créé, `/install` n'est plus accessible.
+   schéma. Si le dossier n'est pas accessible en écriture, l'assistant affiche le contenu
+   exact du fichier à créer à la main. Une fois `config.php` créé, `/install` n'est plus
+   accessible.
    - Alternative manuelle : copier `config.php.example` → `config.php`, le renseigner, puis
      `php bin/migrate.php` (terminal cPanel).
 

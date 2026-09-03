@@ -2,7 +2,7 @@
 
 /** @var string $content */
 $theme = $theme ?? 'auto';
-$scale = $scale ?? 1.0;
+$scale = $scale ?? 1.3;
 $bsTheme = $theme === 'sombre' ? 'dark' : ($theme === 'clair' ? 'light' : null);
 ?>
 <!doctype html>

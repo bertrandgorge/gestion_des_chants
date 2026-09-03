@@ -326,6 +326,8 @@ $liturgie-couleurs: (
     // Thème sombre : on suit le fond de Bootstrap.
     background: #fff;
     color: var(--bs-body-color);
+    // Le pincer ajuste la taille du texte (voir viewer.js), pas le zoom natif.
+    touch-action: pan-x pan-y;
 }
 
 [data-bs-theme="dark"] .public-body {
@@ -348,7 +350,7 @@ $liturgie-couleurs: (
     max-width: 44rem;
     margin: 0 auto;
     padding: 1.25rem 1.15rem 4rem;
-    font-size: calc(1rem * var(--chant-scale, 1));
+    font-size: calc(1rem * var(--chant-scale, 1.3));
     line-height: 1.6;
 }
 
