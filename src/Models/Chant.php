@@ -65,13 +65,14 @@ final class Chant
      * Recherche dans l'historique des chants d'une paroisse (feuilles passées).
      * Regroupe par (titre, code) et conserve la version avec le plus de couplets.
      *
-     * Sources : les feuilles passées de la paroisse (prioritaires) et les chants
-     * de catalogue importés (feuille_id NULL, url renseignée). Le champ « url »
-     * n'est exposé qu'ici, pour l'interface chantre.
+     * Sources : les autres feuilles de la paroisse (prioritaires) et les chants
+     * de catalogue importés (feuille_id NULL, url renseignée). La feuille en cours
+     * d'édition est exclue via $excludeFeuilleId. Le champ « url » n'est exposé
+     * qu'ici, pour l'interface chantre.
      *
      * @return array<int,array<string,mixed>>
      */
-    public static function historique(int $paroisseId, string $q, ?string $type = null): array
+    public static function historique(int $paroisseId, string $q, ?string $type = null, ?int $excludeFeuilleId = null): array
     {
         $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $q) . '%';
 
@@ -81,12 +82,12 @@ final class Chant
              JOIN feuilles_chant f ON f.id = ch.feuille_id
              JOIN clochers c ON c.id = f.clocher_id
              WHERE c.paroisse_id = ?
-               AND f.date_heure < NOW()
+               AND f.id <> ?
                AND ch.chant IS NOT NULL AND ch.chant <> ''
                AND (ch.titre LIKE ? OR ch.code LIKE ?)
              ORDER BY f.date_heure DESC
              LIMIT 300",
-            [$paroisseId, $like, $like]
+            [$paroisseId, $excludeFeuilleId ?? 0, $like, $like]
         );
 
         $catalogue = Database::all(

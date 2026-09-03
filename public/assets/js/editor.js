@@ -193,7 +193,7 @@
             function hidePanel() { panel.hidden = true; panel.innerHTML = ''; }
 
             function search(q) {
-                fetch('/app/chants/recherche?q=' + encodeURIComponent(q) + '&type=' + encodeURIComponent(type), {
+                fetch('/app/chants/recherche?q=' + encodeURIComponent(q) + '&type=' + encodeURIComponent(type) + '&feuille=' + encodeURIComponent(feuille || ''), {
                     headers: { 'X-Requested-With': 'fetch' }
                 })
                     .then(function (r) { return r.json(); })

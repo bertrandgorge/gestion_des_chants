@@ -163,10 +163,11 @@ final class ChantController
         Auth::requireLogin();
         $q = trim((string) ($_GET['q'] ?? ''));
         $type = isset($_GET['type']) ? (string) $_GET['type'] : null;
+        $feuilleId = isset($_GET['feuille']) ? (int) $_GET['feuille'] : null;
         if (mb_strlen($q) < 2) {
             json_response([]);
         }
-        json_response(Chant::historique(Auth::paroisseId(), $q, $type));
+        json_response(Chant::historique(Auth::paroisseId(), $q, $type, $feuilleId));
     }
 
     /**
