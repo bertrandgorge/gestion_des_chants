@@ -63,6 +63,10 @@ docker compose exec app vendor/bin/phpunit
 | `src/Installer.php` | assistant d'installation servi tant que `config.php` n'existe pas (`/install`) |
 | `bin/import_chantonseneglise.php` | importe les chants de chantonseneglise.fr (voir ci-dessous) |
 | `bin/import_catechisme_emmanuel.php` | importe les chants de catechisme-emmanuel.com (répertoire Emmanuel, code IEV) |
+| `bin/import_chorale_pole_fontainebleau.php` | importe les chants de choralepolefontainebleau.org (répertoire de la chorale, ~750 chants) |
+| `bin/import_url.php` | importe un seul chant à partir de son URL (un des trois sites ci-dessus) |
+| `bin/dedup_chants.php` | regroupe les fiches de catalogue en double (même chant importé de plusieurs sources) |
+| `bin/repair_import_journal.php` | répare les liens `import_journal.chant_id` ↔ `chants` (après un rechargement de base incohérent) |
 
 ### Import de chants (préremplissage)
 
@@ -114,6 +118,49 @@ docker compose exec app php bin/import_catechisme_emmanuel.php
 
 # 2. import chantonseneglise : complète les fiches Emmanuel + ajoute le reste
 docker compose exec app php bin/import_chantonseneglise.php
+
+# 3. import choralepolefontainebleau.org (~750 chants, ~2 s/requête)
+docker compose exec app php bin/import_chorale_pole_fontainebleau.php
+```
+
+#### Dédoublonnage
+
+Un même chant présent sur plusieurs sites crée une fiche par source. On les
+regroupe sur une **clé titre + première ligne du refrain**, réduits à leurs seuls
+caractères significatifs (`App\Models\Chant::cleDedup`) — ni le titre seul (des
+chants homonymes existent), ni la cote Secli (souvent absente ou divergente).
+
+- `bin/import_url.php` complète une fiche existante plutôt que d'en créer une en double ;
+- les imports de masse créent les doublons puis on les regroupe après coup :
+
+```bash
+docker compose exec app php bin/dedup_chants.php --dry-run   # liste les fusions
+docker compose exec app php bin/dedup_chants.php
+```
+
+L'autocomplétion de l'éditeur regroupe de toute façon les doublons résiduels sur
+la même clé et propose la version la plus complète (et la plus propre).
+
+Si la table `chants` et `import_journal` se retrouvent désynchronisées (base
+rechargée depuis une sauvegarde, `chant_id` pointant vers un chant sans rapport) :
+
+```bash
+docker compose exec app php bin/repair_import_journal.php --dry-run
+docker compose exec app php bin/repair_import_journal.php
+```
+
+Il relie chaque ligne de journal au bon chant (par url, puis par clé de
+dédoublonnage) et recrée depuis les données conservées dans le journal les fiches
+disparues — sans requête réseau.
+
+#### Importer un seul chant par son URL
+
+`bin/import_url.php` reconnaît l'un des trois sites, réutilise son analyse et
+crée (ou met à jour / dédoublonne) la fiche correspondante :
+
+```bash
+docker compose exec app php bin/import_url.php https://www.chantonseneglise.fr/chant/14086/criez-de-joie-christ-est-ressuscite
+docker compose exec app php bin/import_url.php <url> --dry-run   # analyse sans écrire
 ```
 
 ### URLs

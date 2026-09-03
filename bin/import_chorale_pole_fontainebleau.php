@@ -3,30 +3,32 @@
 declare(strict_types=1);
 
 /**
- * Import des chants du site « Catéchisme Emmanuel » (https://catechisme-emmanuel.com).
+ * Import des chants du site « Chorale Paroissiale du Pôle Missionnaire de
+ * Fontainebleau » (https://choralepolefontainebleau.org).
  *
- * Ce répertoire (Communauté de l'Emmanuel) porte un code « IEV » (ex. « IEV 19-06 »)
- * absent de chantonseneglise.fr. On l'importe EN PREMIER : l'import chantonseneglise
- * complète ensuite ces fiches (cote Secli, auteur…) sans créer de doublon, en se
- * rapprochant par ce code (import_journal.code_repertoire).
- *
- * Trois passes suivies dans « import_journal » (source = catechisme-emmanuel),
+ * Trois passes suivies dans « import_journal » (source = chorale-pole-fontainebleau),
  * toutes relançables (une exécution sans --phase les enchaîne) :
  *
- *   1. ENUM   : charge /tous-les-chants/ et référence chaque chant en « a-importer »
- *               (titre, thème, code IEV et lien de la fiche sont déjà connus ici).
- *   2. FETCH  : pour chaque « a-importer », charge /chants/{slug}/ et en déduit
+ *   1. ENUM   : charge /category/bibliotheque/chants/ (un tableau y liste TOUS les
+ *               chants, quelle que soit la pagination) et référence chaque chant
+ *               en « a-importer » (titre, thématique et lien sont déjà connus ici).
+ *   2. FETCH  : pour chaque « a-importer », charge la fiche et en déduit
  *               « avec-paroles » (données parsées) ou « sans-paroles ».
  *   3. IMPORT : crée dans « chants » une fiche par ligne « avec-paroles »
  *               (feuille_id = NULL, url = fiche source), puis passe à « importe ».
  *
- * Le « type » est un slug de App\SectionTypes::DEFAUT, déduit du titre (« entree »
- * par défaut : ce répertoire est surtout de la louange et de la méditation).
+ * Comme les autres imports, ces fiches de catalogue alimentent l'autocomplétion
+ * de l'éditeur de feuille ; les doublons éventuels avec chantonseneglise.fr /
+ * catechisme-emmanuel.com sont regroupés à l'affichage (titre + cote Secli),
+ * la version avec le plus de couplets étant proposée en priorité.
+ *
+ * Le « type » est un slug de App\SectionTypes::DEFAUT, déduit de la thématique du
+ * site (« entree » par défaut).
  *
  * Usage :
- *   php bin/import_catechisme_emmanuel.php
- *   php bin/import_catechisme_emmanuel.php --phase=fetch --limit=50
- *   php bin/import_catechisme_emmanuel.php --reformat
+ *   php bin/import_chorale_pole_fontainebleau.php
+ *   php bin/import_chorale_pole_fontainebleau.php --phase=fetch --limit=50
+ *   php bin/import_chorale_pole_fontainebleau.php --reformat
  *
  * Options :
  *   --phase=NOM   enum | fetch | import : ne lancer qu'une passe (défaut : les 3).
@@ -41,9 +43,9 @@ declare(strict_types=1);
  */
 
 use App\Database;
-use App\Import\CatechismeEmmanuel as Site;
+use App\Import\ChoralePoleFontainebleau as Site;
 
-const SOURCE = 'catechisme-emmanuel';
+const SOURCE = 'chorale-pole-fontainebleau';
 
 if (PHP_SAPI !== 'cli') {
     exit("Ce script s'exécute en ligne de commande uniquement.\n");
@@ -83,7 +85,8 @@ if (isset($opts['reformat'])) {
 if (isset($opts['refresh']) && !$dryRun) {
     Database::run(
         "UPDATE import_journal
-            SET statut = 'a-importer', auteur = NULL, type = NULL, nom = NULL, chant = NULL
+            SET statut = 'a-importer', code = NULL, code_repertoire = NULL,
+                auteur = NULL, type = NULL, nom = NULL, chant = NULL
           WHERE source = ?",
         [SOURCE]
     );
@@ -100,7 +103,7 @@ if ($faire('enum')) {
 
     [$status, $body] = httpGet(Site::urlListe(), $delayMs);
     if ($status !== 200 || $body === null) {
-        exit("  ! /tous-les-chants/ : HTTP {$status}\n");
+        exit("  ! /category/bibliotheque/chants/ : HTTP {$status}\n");
     }
 
     $chants = Site::parseListe($body);
@@ -115,9 +118,9 @@ if ($faire('fetch')) {
     $log("\n=== Passe 2 : récupération des paroles ===");
 
     $aTraiter = Database::all(
-        "SELECT ref, url, code_repertoire FROM import_journal
+        "SELECT ref, url, categorie FROM import_journal
           WHERE source = ? AND statut IN ('a-importer', 'erreur')
-          ORDER BY ref",
+          ORDER BY CAST(ref AS UNSIGNED)",
         [SOURCE]
     );
     $log(sprintf('%d fiches à récupérer.', count($aTraiter)));
@@ -130,26 +133,27 @@ if ($faire('fetch')) {
             break;
         }
         $fait++;
-        $slug = (string) $row['ref'];
-        [$status, $body] = httpGet(Site::urlChant($slug), $delayMs);
+        $ref = (string) $row['ref'];
+        [$status, $body] = httpGet((string) $row['url'], $delayMs);
 
         if ($status !== 200 || $body === null) {
             $erreurs++;
-            $log("  ! {$slug} : HTTP {$status}");
-            majJournalStatut($slug, $status === 404 ? 'sans-paroles' : 'erreur', $dryRun);
+            $log("  ! {$ref} : HTTP {$status}");
+            majJournalStatut($ref, $status === 404 ? 'sans-paroles' : 'erreur', $dryRun);
             continue;
         }
 
-        $data = Site::parseChant($body, (string) ($row['code_repertoire'] ?? ''));
+        $data = Site::parseChant($body, (string) ($row['categorie'] ?? ''));
         if ($data === null) {
             $sansParoles++;
-            majJournalStatut($slug, 'sans-paroles', $dryRun);
+            majJournalStatut($ref, 'sans-paroles', $dryRun);
             continue;
         }
 
         $avecParoles++;
-        majJournalDonnees($slug, [
+        majJournalDonnees($ref, [
             'titre'           => tronque($data['titre'], 255),
+            'code'            => $data['code'] !== '' ? tronque($data['code'], 60) : null,
             'code_repertoire' => $data['code_repertoire'] !== null ? tronque($data['code_repertoire'], 60) : null,
             'auteur'          => $data['auteur'] !== '' ? tronque($data['auteur'], 190) : null,
             'type'            => $data['type'],
@@ -173,7 +177,7 @@ if ($faire('import')) {
     $log("\n=== Passe 3 : création des fiches ===");
 
     $aImporter = Database::all(
-        "SELECT ref, url, titre, code_repertoire, auteur, type, nom, chant, chant_id
+        "SELECT ref, url, titre, code, auteur, type, nom, chant, chant_id
            FROM import_journal
           WHERE source = ? AND statut = 'avec-paroles'",
         [SOURCE]
@@ -183,8 +187,21 @@ if ($faire('import')) {
     $crees = $majs = 0;
 
     foreach ($aImporter as $j) {
-        $chant    = \App\Import\Paroles::format((string) $j['chant']);
+        $chant    = Site::formatParoles((string) $j['chant']);
         $couplets = count_couplets($chant, false);
+
+        $ligne = [
+            'feuille_id'  => null,
+            'nom'         => (string) ($j['nom'] ?: 'Chant'),
+            'type'        => (string) ($j['type'] ?: \App\Import\TypeLiturgique::DEFAUT),
+            'position'    => 0,
+            'titre'       => $j['titre'],
+            'code'        => $j['code'],
+            'auteur'      => $j['auteur'],
+            'chant'       => $chant,
+            'nb_couplets' => $couplets,
+            'url'         => $j['url'],
+        ];
 
         if ($dryRun) {
             $crees++;
@@ -192,33 +209,11 @@ if ($faire('import')) {
         }
 
         if ($j['chant_id'] !== null) {
-            // Reprise : on rafraîchit ce dont ce site est la source (titre, paroles,
-            // url, et auteur s'il est renseigné) sans toucher à la cote Secli ni au
-            // classement, qu'une complétion depuis chantonseneglise a pu ajuster.
+            Database::update('chants', $ligne, ['id' => (int) $j['chant_id']]);
             $chantId = (int) $j['chant_id'];
-            $maj = [
-                'titre'       => $j['titre'],
-                'chant'       => $chant,
-                'nb_couplets' => $couplets,
-                'url'         => $j['url'],
-            ];
-            if ((string) $j['auteur'] !== '') {
-                $maj['auteur'] = $j['auteur'];
-            }
-            Database::update('chants', $maj, ['id' => $chantId]);
             $majs++;
         } else {
-            $chantId = Database::insert('chants', [
-                'feuille_id'  => null,
-                'nom'         => (string) ($j['nom'] ?: 'Chant'),
-                'type'        => (string) ($j['type'] ?: \App\Import\TypeLiturgique::DEFAUT),
-                'position'    => 0,
-                'titre'       => $j['titre'],
-                'auteur'      => $j['auteur'] ?: null,
-                'chant'       => $chant,
-                'nb_couplets' => $couplets,
-                'url'         => $j['url'],
-            ]);
+            $chantId = Database::insert('chants', $ligne);
             $crees++;
         }
         Database::run(
@@ -255,10 +250,10 @@ exit($erreurs > 0 ? 1 : 0);
 
 /**
  * Insère les chants de la liste dans import_journal (statut « a-importer »).
- * Purement additif : ON DUPLICATE KEY rafraîchit l'url / le titre / le code /
- * le thème, jamais le statut ni les paroles déjà récupérées.
+ * Purement additif : ON DUPLICATE KEY rafraîchit l'url / le titre / la thématique,
+ * jamais le statut ni les paroles déjà récupérées.
  *
- * @param array<string,array{slug:string,url:string,titre:string,theme:string,code_repertoire:?string}> $chants
+ * @param array<string,array{ref:string,url:string,titre:string,theme:string}> $chants
  */
 function referenceChants(array $chants): int
 {
@@ -272,23 +267,22 @@ function referenceChants(array $chants): int
         $valeurs = [];
         $params  = [];
         foreach ($lot as $c) {
-            $valeurs[] = '(?, ?, ?, ?, ?, ?, ?)';
+            $valeurs[] = '(?, ?, ?, ?, ?, ?)';
             array_push(
                 $params,
                 SOURCE,
-                tronque($c['slug'], 190),
+                tronque($c['ref'], 190),
                 'a-importer',
                 $c['url'],
                 tronque($c['titre'], 255),
-                $c['code_repertoire'] !== null ? tronque($c['code_repertoire'], 60) : null,
-                tronque($c['theme'], 255)
+                $c['theme'] !== '' ? tronque($c['theme'], 255) : null
             );
         }
         Database::run(
-            'INSERT INTO import_journal (source, ref, statut, url, titre, code_repertoire, categorie) VALUES '
+            'INSERT INTO import_journal (source, ref, statut, url, titre, categorie) VALUES '
             . implode(', ', $valeurs)
             . ' ON DUPLICATE KEY UPDATE url = VALUES(url), titre = VALUES(titre),
-                 code_repertoire = VALUES(code_repertoire), categorie = VALUES(categorie)',
+                 categorie = VALUES(categorie)',
             $params
         );
     }
@@ -329,7 +323,7 @@ function reformater(bool $dryRun): int
     );
     $modifies = 0;
     foreach ($lignes as $row) {
-        $propre   = \App\Import\Paroles::format((string) $row['chant']);
+        $propre   = Site::formatParoles((string) $row['chant']);
         $couplets = count_couplets($propre, false);
         if ($propre !== (string) $row['chant'] || (int) $row['nb_couplets'] !== $couplets) {
             $modifies++;
