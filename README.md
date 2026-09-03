@@ -6,8 +6,17 @@ Application web pour préparer et diffuser les feuilles de messe d'une paroisse.
 - **Chantres** : préparent la feuille de messe (chants + lectures récupérées automatiquement depuis [l'API AELF](https://api.aelf.org)).
 - **Administrateurs** : configurent la paroisse, les clochers et les utilisateurs.
 
-Architecture **LAMP sans framework** (PHP 8.1+, MySQL/MariaDB, Apache), hébergeable sur O2Switch.
-Front : **npm + SCSS + Bootstrap 5**, JavaScript natif (+ SortableJS).
+
+# Fonctionnalités
+
+* Permet de créer une feuille de chant en 3 minutes chrono (contient déjà la plupart des chants)
+* Import automatique AELF des lectures
+* Gestion des utilisateurs en password-less
+* Accès aux feuilles de messe via QRCode ou lien non périssable
+* Possibilité d'imprimer ou d'exporter en word
+* Possibilité d'afficher en mode présentation avec détection automatique des refrains
+* Zoom dans tous les modes
+* Mode sombre/clair
 
 ## Développement (Docker)
 
@@ -97,15 +106,7 @@ fiches déjà importées sans retélécharger :
 docker compose exec app php bin/import_chantonseneglise.php --reformat
 ```
 
-#### Répertoire Emmanuel (catechisme-emmanuel.com)
-
-Ces chants (Communauté de l'Emmanuel) portent un code **IEV** (« IEV 19-06 »)
-absent de chantonseneglise.fr. On les importe **en premier**, puis on lance
-chantonseneglise qui **complète** les fiches Emmanuel (cote Secli, auteur, paroles
-plus complètes) au lieu de créer un doublon — le rapprochement se fait sur le code
-IEV, mémorisé dans `import_journal.code_repertoire` (relevé dès que l'éditeur d'une
-fiche chantonseneglise est « Éditions de l'Emmanuel »). Ces fiches passent alors au
-statut `complete`.
+#### Répertoires importés
 
 ```bash
 # 1. import Emmanuel (≈140 chants, ~2 s/requête)
@@ -114,9 +115,6 @@ docker compose exec app php bin/import_catechisme_emmanuel.php
 # 2. import chantonseneglise : complète les fiches Emmanuel + ajoute le reste
 docker compose exec app php bin/import_chantonseneglise.php
 ```
-
-Mêmes passes (`enum` / `fetch` / `import`) et mêmes options (`--phase`, `--limit`,
-`--refresh`, `--reformat`, `--dry-run`) que l'import chantonseneglise.
 
 ### URLs
 
@@ -133,9 +131,10 @@ Mêmes passes (`enum` / `fetch` / `import`) et mêmes options (`--phase`, `--lim
 1. Déposer les fichiers (hors `docker/`, `tests/`, `node_modules/`).
 2. Faire pointer le domaine / sous-domaine sur le dossier `public/`.
 3. `composer install --no-dev` (Composer disponible dans cPanel).
-4. Créer la base MySQL depuis cPanel.
-5. Ouvrir le site dans un navigateur : tant que `config.php` n'existe pas, l'**assistant
-   d'installation** (`/install`) s'affiche. Il permet de saisir la base de données et le
+4. Créer la base et un utilisateur MySQL depuis cPanel (host à utiliser : localhost)
+5. Créer un compte email pour l'envoi des emails (le host à utiliser est 'xxxx.o2switch.net' sur le port 465)
+6. Ouvrir le site dans un navigateur : l'**assistant d'installation** (`/install`) s'affiche
+   automatiquement. Il permet de saisir la base de données et le
    SMTP, de tester la connexion et l'envoi d'email, puis écrit `config.php` et applique le
    schéma. Si le dossier n'est pas accessible en écriture, l'assistant affiche le contenu
    exact du fichier à créer à la main. Une fois `config.php` créé, `/install` n'est plus
@@ -143,9 +142,3 @@ Mêmes passes (`enum` / `fetch` / `import`) et mêmes options (`--phase`, `--lim
    - Alternative manuelle : copier `config.php.example` → `config.php`, le renseigner, puis
      `php bin/migrate.php` (terminal cPanel).
 
-L'affichage des erreurs PHP est déjà désactivé par le code (`src/bootstrap.php`) : les erreurs
-sont journalisées mais jamais montrées au visiteur. Pour les afficher en local, mettre
-`'debug' => true` dans `config.php` (section `app`).
-
-Les seules données de configuration à gérer sur l'hébergement sont dans `config.php`
-(base de données, SMTP, URL publique).
