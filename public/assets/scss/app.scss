@@ -413,6 +413,8 @@ body.presentation-active {
         background: #000;
         color: #fff;
         cursor: none;
+        // Le pincer ajuste la taille du texte (voir viewer.js), pas le zoom natif.
+        touch-action: none;
     }
 }
 

@@ -40,6 +40,7 @@
         }
 
         document.addEventListener('touchstart', function (e) {
+            if (document.body.classList.contains('presentation-active')) { return; }
             if (e.touches.length === 2) {
                 pinching = true;
                 startDist = distance(e.touches);
@@ -61,6 +62,7 @@
 
         // iOS Safari : événements « gesture » dédiés (ignore touch-action).
         document.addEventListener('gesturestart', function (e) {
+            if (document.body.classList.contains('presentation-active')) { return; }
             e.preventDefault();
             pinching = true;
             startScale = currentScale();
@@ -100,6 +102,7 @@
         var black = false;
         var presScale = 1;
         var autoFit = true; // tant que vrai, la taille est recalculée automatiquement
+        var lastGestureEnd = 0;
 
         function clampScale(s) {
             return Math.min(3, Math.max(0.3, s));
@@ -255,8 +258,83 @@
         });
 
         presentation.addEventListener('click', function () {
+            // Un pincer ou un glissé vient de se terminer : on n'avance pas la slide.
+            if (Date.now() - lastGestureEnd < 400) { return; }
             if (black) { setBlack(false); }
             showSlide(index + 1);
+        });
+
+        /* ---------- Gestes tactiles : pincer (taille) et glisser (navigation) ---------- */
+        var pinchDist = 0, pinchBase = 1, pinching = false;
+        var swipeX = 0, swipeY = 0, swipeStart = 0, multiTouch = false;
+
+        function pinchGap(touches) {
+            var dx = touches[0].clientX - touches[1].clientX;
+            var dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function applyPinchScale(factor) {
+            autoFit = false; // le pincer remplace l'auto-ajustement
+            presScale = clampScale(Math.round(pinchBase * factor * 100) / 100);
+            presentation.style.setProperty('--pres-scale', presScale);
+        }
+
+        presentation.addEventListener('touchstart', function (e) {
+            if (e.touches.length === 2) {
+                pinching = true;
+                multiTouch = true;
+                pinchDist = pinchGap(e.touches);
+                pinchBase = presScale;
+            } else if (e.touches.length === 1) {
+                multiTouch = false;
+                swipeX = e.touches[0].clientX;
+                swipeY = e.touches[0].clientY;
+                swipeStart = Date.now();
+            }
+        }, { passive: true });
+
+        presentation.addEventListener('touchmove', function (e) {
+            if (!pinching || e.touches.length !== 2) { return; }
+            e.preventDefault(); // empêche le zoom natif de la page
+            if (pinchDist > 0) {
+                applyPinchScale(pinchGap(e.touches) / pinchDist);
+            }
+        }, { passive: false });
+
+        presentation.addEventListener('touchend', function (e) {
+            if (pinching && e.touches.length < 2) {
+                pinching = false;
+                lastGestureEnd = Date.now();
+            }
+            if (e.touches.length > 0) { return; }            // il reste des doigts posés
+            if (multiTouch) { multiTouch = false; return; }  // c'était un pincer
+            var t = e.changedTouches[0];
+            if (!t) { return; }
+            var dx = t.clientX - swipeX, dy = t.clientY - swipeY;
+            // Glissé horizontal franc et rapide : vers la gauche = slide suivante.
+            if (Date.now() - swipeStart < 600 && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                lastGestureEnd = Date.now();
+                if (black) { setBlack(false); }
+                showSlide(index + (dx < 0 ? 1 : -1));
+            }
+        });
+
+        // iOS Safari : événements « gesture » dédiés (ignore touch-action).
+        presentation.addEventListener('gesturestart', function (e) {
+            e.preventDefault();
+            pinching = true;
+            multiTouch = true;
+            pinchBase = presScale;
+        });
+        presentation.addEventListener('gesturechange', function (e) {
+            if (!pinching) { return; }
+            e.preventDefault();
+            applyPinchScale(e.scale);
+        });
+        presentation.addEventListener('gestureend', function () {
+            pinching = false;
+            lastGestureEnd = Date.now();
         });
 
         document.addEventListener('fullscreenchange', function () {
