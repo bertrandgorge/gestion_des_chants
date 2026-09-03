@@ -18,6 +18,7 @@ final class SectionTypesTest extends TestCase
 
         $this->assertFalse(SectionTypes::imprimableParDefaut('premiere_lecture'));
         $this->assertFalse(SectionTypes::imprimableParDefaut('evangile'));
+        // Comportement « chant » mais exclue par son type : hors feuille des chantres.
         $this->assertFalse(SectionTypes::imprimableParDefaut('priere_universelle'));
     }
 

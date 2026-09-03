@@ -37,7 +37,7 @@ final class TypeLiturgique
 
         // Ordre important : le premier motif trouvé gagne. Uniquement des slugs
         // de App\SectionTypes::DEFAUT (l'alléluia / acclamation → « evangile »,
-        // l'Agneau de Dieu → « communion », faute de section dédiée).
+        // faute de section dédiée).
         $regles = [
             'psaume'             => ['psaume responsorial', 'psaume'],
             'evangile'           => ['acclamation a l\'evangile', 'acclamation de l\'evangile', 'acclamation avant l\'evangile', 'alleluia', 'acclamation', 'sequence', 'verset de l\'evangile'],
@@ -45,9 +45,10 @@ final class TypeLiturgique
             'gloria'             => ['gloria', 'gloire a dieu'],
             'sanctus'            => ['sanctus', 'saint le seigneur', 'saint, le seigneur'],
             'anamnese'           => ['anamnese', 'proclamons le mystere'],
+            'agnus'              => ['agneau de dieu', 'agnus'],
             'entree'             => ['chant d\'entree', 'd\'entree', 'rite d\'entree', 'rassemblement', 'ouverture', 'procession d\'entree'],
             'offertoire'         => ['offertoire', 'presentation des dons', 'preparation des dons', 'procession des offrandes'],
-            'communion'          => ['communion', 'agneau de dieu', 'agnus', 'fraction du pain', 'fraction', 'agape'],
+            'communion'          => ['communion', 'fraction du pain', 'fraction', 'agape'],
             'priere_universelle' => ['priere universelle', 'intercession', 'universelle'],
             'envoi'              => ['chant d\'envoi', 'd\'envoi', 'envoi', 'sortie', 'benediction finale', 'final'],
         ];

@@ -248,10 +248,10 @@ final class ImportChantonsEnEgliseTest extends TestCase
             'rassemblement'  => ['Chant de rassemblement et d’ouverture.', 'entree'],
             'envoi'          => ["Chant d'envoi", 'envoi'],
             'offertoire'     => ['Offertoire', 'offertoire'],
-            // Pas de section dédiée : l'acclamation/alléluia → evangile, l'Agneau → communion.
+            // Pas de section dédiée : l'acclamation/alléluia → evangile.
             'acclamation'    => ["acclamation de l'Évangile", 'evangile'],
             'alléluia'       => ['Alléluia', 'evangile'],
-            'agneau'         => ['Agneau de Dieu', 'communion'],
+            'agneau'         => ['Agneau de Dieu', 'agnus'],
             'psaume'         => ['Psaume responsorial', 'psaume'],
             'pénitentiel'    => ['Rite pénitentiel.', 'kyrie'],
             'gloria'         => ['Gloire à Dieu', 'gloria'],

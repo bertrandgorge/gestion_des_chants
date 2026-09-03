@@ -24,10 +24,11 @@ final class SectionTypes
         ['type' => 'psaume',             'nom' => 'Psaume',               'comportement' => 'psaume'],
         ['type' => 'deuxieme_lecture',   'nom' => 'Deuxième lecture',      'comportement' => 'lecture'],
         ['type' => 'evangile',           'nom' => 'Évangile',            'comportement' => 'evangile'],
-        ['type' => 'priere_universelle', 'nom' => 'Prière universelle',    'comportement' => 'priere'],
+        ['type' => 'priere_universelle', 'nom' => 'Prière universelle',    'comportement' => 'chant'],
         ['type' => 'offertoire',         'nom' => 'Offertoire',           'comportement' => 'chant'],
         ['type' => 'sanctus',            'nom' => 'Sanctus',              'comportement' => 'ordinaire'],
         ['type' => 'anamnese',           'nom' => 'Anamnèse',             'comportement' => 'ordinaire'],
+        ['type' => 'agnus',              'nom' => 'Agnus',                'comportement' => 'ordinaire'],
         ['type' => 'communion',          'nom' => 'Communion',           'comportement' => 'chant'],
         ['type' => 'envoi',              'nom' => "Chant d'envoi",         'comportement' => 'chant'],
     ];
@@ -57,6 +58,13 @@ final class SectionTypes
 
     /** Comportements cochés par défaut à l'impression de la feuille de chant. */
     private const IMPRIMABLES_DEFAUT = ['chant', 'ordinaire', 'psaume'];
+
+    /**
+     * Types décochés par défaut à l'impression malgré leur comportement. La
+     * prière universelle se saisit comme un chant (le refrain repris entre les
+     * intentions) mais n'a pas sa place sur la feuille des chantres.
+     */
+    private const NON_IMPRIMABLES_DEFAUT = ['priere_universelle'];
 
     public static function comportement(string $type): string
     {
@@ -99,6 +107,10 @@ final class SectionTypes
      */
     public static function imprimableParDefaut(string $type): bool
     {
+        if (in_array($type, self::NON_IMPRIMABLES_DEFAUT, true)) {
+            return false;
+        }
+
         return in_array(self::comportement($type), self::IMPRIMABLES_DEFAUT, true);
     }
 
