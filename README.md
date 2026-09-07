@@ -67,6 +67,7 @@ docker compose exec app vendor/bin/phpunit
 | `bin/import_url.php` | importe un seul chant à partir de son URL (un des trois sites ci-dessus) |
 | `bin/dedup_chants.php` | regroupe les fiches de catalogue en double (même chant importé de plusieurs sources) |
 | `bin/repair_import_journal.php` | répare les liens `import_journal.chant_id` ↔ `chants` (après un rechargement de base incohérent) |
+| `bin/import_dump.sh` | remet à zéro la base de dev (Docker) et la recharge depuis un dump SQL : `bin/import_dump.sh dump.sql` |
 
 ### Import de chants (préremplissage)
 
