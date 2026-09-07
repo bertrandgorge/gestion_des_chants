@@ -189,7 +189,8 @@ final class Chant
      * déjà du répertoire (sinon déjà couvert par la recherche répertoire), et le
      * répertoire partagé (App\Models\RepertoireChant, non filtré par paroisse).
      * La feuille en cours d'édition est exclue via $excludeFeuilleId. Les champs
-     * « url »/« repertoire_id » ne sont exposés qu'ici, pour l'interface chantre.
+     * « url »/« repertoire_id »/« source_label » (provenance : « Répertoire » ou
+     * « Feuille du … ») ne sont exposés qu'ici, pour l'interface chantre.
      *
      * Recherche multi-mots : chaque mot doit apparaître dans au moins un des
      * champs titre / code / auteur / source (URL), tous les mots étant requis.
@@ -206,7 +207,8 @@ final class Chant
         [$ouHistorique, $paramsHistorique] = Database::likeMots($q, $templatesHistorique);
 
         $historique = Database::all(
-            "SELECT ch.titre, ch.code, ch.auteur, ch.chant, ch.nb_couplets, ch.type, ch.feuille_id, ch.url
+            "SELECT ch.titre, ch.code, ch.auteur, ch.chant, ch.nb_couplets, ch.type, ch.feuille_id, ch.url,
+                    f.date_heure AS feuille_date
              FROM chants ch
              JOIN feuilles_chant f ON f.id = ch.feuille_id
              JOIN clochers c ON c.id = f.clocher_id
@@ -262,6 +264,7 @@ final class Chant
                     'auteur'        => $row['auteur'],
                     'chant'         => $row['chant'],
                     'feuille_id'    => isset($row['feuille_id']) ? (int) $row['feuille_id'] : null,
+                    'feuille_date'  => $row['feuille_date'] ?? null,
                     'repertoire_id' => $groups[$key]['repertoire_id'] ?? $rid,
                     'ordinaire'     => $groups[$key]['ordinaire'] ?? ($row['ordinaire'] ?? null),
                     'url'           => $groups[$key]['url'] ?? ($row['url'] ?? null),
@@ -281,6 +284,12 @@ final class Chant
         $result = [];
         foreach ($groups as $key => $g) {
             $g['types'] = array_keys($typesByKey[$key]);
+            // Provenance affichée dans la recherche : le répertoire l'emporte
+            // (c'est lui qui sera lié à la section) ; sinon la feuille d'où le
+            // chant a été repris.
+            $g['source_label'] = $g['repertoire_id'] !== null
+                ? 'Répertoire'
+                : ($g['feuille_date'] !== null ? 'Feuille du ' . self::dateCourte((string) $g['feuille_date']) : null);
             unset($g['_couplets']);
             $result[] = $g;
         }
@@ -291,5 +300,15 @@ final class Chant
         }
 
         return array_slice($result, 0, 20);
+    }
+
+    /** Date au format court « 12 sept. 2026 » (étiquette de provenance dans la recherche). */
+    private static function dateCourte(string $datetime): string
+    {
+        $dt = new \DateTimeImmutable($datetime);
+        $mois = [1 => 'janv.', 2 => 'févr.', 3 => 'mars', 4 => 'avr.', 5 => 'mai', 6 => 'juin',
+            7 => 'juil.', 8 => 'août', 9 => 'sept.', 10 => 'oct.', 11 => 'nov.', 12 => 'déc.'];
+
+        return sprintf('%d %s %d', (int) $dt->format('j'), $mois[(int) $dt->format('n')], (int) $dt->format('Y'));
     }
 }

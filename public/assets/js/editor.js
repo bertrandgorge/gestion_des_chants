@@ -237,7 +237,14 @@
                             var a = document.createElement('button');
                             a.type = 'button';
                             a.className = 'list-group-item list-group-item-action';
-                            var badges = (item.types || []).map(function (t) {
+                            var badges = '';
+                            if (item.source_label) {
+                                var estRepertoire = item.repertoire_id != null;
+                                badges += '<span class="badge ms-1 ' + (estRepertoire ? 'text-bg-primary' : 'text-bg-secondary') + '">'
+                                    + '<i class="bi ' + (estRepertoire ? 'bi-journal-bookmark' : 'bi-calendar-event') + '"></i> '
+                                    + escapeHtml(item.source_label) + '</span>';
+                            }
+                            badges += (item.types || []).map(function (t) {
                                 return '<span class="badge text-bg-light border ms-1">' + escapeHtml(t) + '</span>';
                             }).join('');
                             if (item.url) {
