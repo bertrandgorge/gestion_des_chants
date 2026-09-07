@@ -154,17 +154,17 @@ $retour = '/app/repertoire' . query_suffix(['q' => $retourQ, 'texte' => $retourT
         </div>
     <?php endif; ?>
 
-    <div class="d-flex justify-content-between">
+    <div class="d-flex flex-column flex-sm-row gap-2 justify-content-sm-between">
         <!-- Même formulaire que « Enregistrer » (un <form> imbriqué serait invalide en
              HTML et casserait les deux) : on redirige juste sa soumission via formaction. -->
-        <button type="submit" class="btn btn-outline-danger" formnovalidate
+        <button type="submit" class="btn btn-outline-danger order-last order-sm-first" formnovalidate
                 formaction="/app/repertoire/<?= $chant['id'] ?>/supprimer"
                 onclick="return confirm('Supprimer « <?= e(addslashes($chant['titre'])) ?> » du répertoire ? Les chants déjà repris sur des feuilles ne seront pas supprimés.')">
             <i class="bi bi-trash3"></i> Supprimer du répertoire
         </button>
         <div class="d-flex gap-2">
-            <a class="btn btn-outline-secondary" href="<?= e($retour) ?>">Annuler</a>
-            <button class="btn btn-primary">Enregistrer</button>
+            <a class="btn btn-outline-secondary flex-fill" href="<?= e($retour) ?>">Annuler</a>
+            <button class="btn btn-primary flex-fill">Enregistrer</button>
         </div>
     </div>
 </form>

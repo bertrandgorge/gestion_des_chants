@@ -148,8 +148,8 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
         </div>
     <?php endif; ?>
 
-    <div class="d-flex justify-content-between">
-        <div class="d-flex gap-2">
+    <div class="d-flex flex-column flex-sm-row gap-2 justify-content-sm-between">
+        <div class="d-flex flex-wrap gap-2 order-last order-sm-first">
             <?php if ($estChant): ?>
                 <button type="button" class="btn btn-outline-secondary" data-clear-chant>Vider</button>
             <?php endif; ?>
@@ -168,8 +168,8 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
             <?php endif; ?>
         </div>
         <div class="d-flex gap-2">
-            <a class="btn btn-outline-secondary" href="<?= e($retour) ?>">Annuler</a>
-            <button class="btn btn-primary">Enregistrer</button>
+            <a class="btn btn-outline-secondary flex-fill" href="<?= e($retour) ?>">Annuler</a>
+            <button class="btn btn-primary flex-fill">Enregistrer</button>
         </div>
     </div>
 </form>
