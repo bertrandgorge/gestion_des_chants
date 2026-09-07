@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Import des chants du site « Chantons en Église » (https://www.chantonseneglise.fr).
  *
- * Le site étant lent, l'import se déroule en trois passes, toutes relançables et
+ * Le site étant lent, l'import se déroule en deux passes, toutes relançables et
  * suivies dans la table « import_journal » (source = chantonseneglise) :
  *
  *   1. ENUM   : parcourt le catalogue par lettre (/catalogue/chant/A … Z, avec
@@ -14,20 +14,15 @@ declare(strict_types=1);
  *   2. FETCH  : pour chaque « a-importer », charge /voir-texte/{id}, en déduit
  *               « avec-paroles » (données parsées stockées dans import_journal)
  *               ou « sans-paroles ».
- *   3. IMPORT : crée dans « chants » une fiche par ligne « avec-paroles »
- *               (feuille_id = NULL, url = fiche source, nb_couplets renseigné),
- *               puis passe la ligne à « importe ». Aucune requête réseau.
  *
- * Répertoire Emmanuel : quand l'éditeur d'une fiche est « Éditions de l'Emmanuel »,
- * on relève son code IEV (ex. « IEV 19-06 ») dans import_journal.code_repertoire.
- * Si ce chant a déjà été importé depuis catechisme-emmanuel.com (import à lancer
- * EN PREMIER), la passe IMPORT complète la fiche Emmanuel existante (cote Secli,
- * auteur, paroles plus complètes) au lieu de créer un doublon → statut « complete ».
+ * La création / le dédoublonnage des fiches du répertoire (App\Models\RepertoireChant)
+ * à partir des lignes « avec-paroles » est une passe séparée, commune à toutes
+ * les sources : voir bin/import_repertoire.php.
  *
  * Le « type » est toujours un slug de App\SectionTypes::DEFAUT (entree, kyrie,
  * communion, envoi…), déduit du libellé du site (« entree » par défaut).
  *
- * Une exécution sans --phase enchaîne les trois passes ; chacune reprend où la
+ * Une exécution sans --phase enchaîne les deux passes ; chacune reprend où la
  * précédente s'était arrêtée. import_journal n'est JAMAIS vidée ni réinitialisée :
  * ENUM n'y ajoute que les lignes manquantes (un marqueur « enum:<préfixe> » est
  * posé par sous-préfixe entièrement parcouru pour ne pas le refaire). Seul
@@ -37,22 +32,16 @@ declare(strict_types=1);
  *   php bin/import_chantonseneglise.php
  *   php bin/import_chantonseneglise.php --phase=fetch --limit=200
  *   php bin/import_chantonseneglise.php --letters=A-C
- *   php bin/import_chantonseneglise.php --reformat
  *
  * Options :
- *   --phase=NOM      enum | fetch | import : ne lancer qu'une passe (défaut : les 3).
+ *   --phase=NOM      enum | fetch : ne lancer qu'une passe (défaut : les 2).
  *   --letters=LISTE  Lettres / préfixes à énumérer (défaut : 0-9,A-Z).
  *                    Accepte des plages (A-G) et des préfixes (LE).
  *   --limit=N        Passe FETCH : s'arrêter après N fiches téléchargées.
  *   --delay=MS       Pause minimale entre requêtes HTTP en ms (défaut : 2000).
  *   --refresh        Repart de zéro : remet toutes les lignes en « a-importer »
- *                    et ré-énumère le catalogue (les fiches « chants » existantes
- *                    sont mises à jour, pas recréées).
+ *                    et ré-énumère le catalogue.
  *   --retry-sans-paroles  Passe FETCH : re-teste aussi les « sans-paroles ».
- *   --reformat       Remet en forme les paroles déjà importées (R/, 1., 2. …)
- *                    sans aucune requête réseau, puis s'arrête.
- *   --reclassify     Re-déduit type + nom des fiches déjà traitées depuis la
- *                    catégorie mémorisée (sans réseau), puis s'arrête.
  *   --dry-run        N'écrit rien en base.
  *   --quiet          Affiche moins de messages.
  *   -h, --help       Cette aide.
@@ -72,7 +61,7 @@ require dirname(__DIR__) . '/src/bootstrap.php';
 // --- Options -------------------------------------------------------------
 $opts = getopt('h', [
     'phase:', 'letters:', 'limit:', 'delay:',
-    'refresh', 'retry-sans-paroles', 'reformat', 'reclassify', 'dry-run', 'quiet', 'help',
+    'refresh', 'retry-sans-paroles', 'dry-run', 'quiet', 'help',
 ]);
 
 if (isset($opts['h']) || isset($opts['help'])) {
@@ -82,8 +71,8 @@ if (isset($opts['h']) || isset($opts['help'])) {
 }
 
 $phase   = isset($opts['phase']) ? strtolower((string) $opts['phase']) : null;
-if ($phase !== null && !in_array($phase, ['enum', 'fetch', 'import'], true)) {
-    exit("--phase doit valoir enum, fetch ou import.\n");
+if ($phase !== null && !in_array($phase, ['enum', 'fetch'], true)) {
+    exit("--phase doit valoir enum ou fetch.\n");
 }
 $lettres = expandLettres($opts['letters'] ?? '0-9,A-Z');
 $limit   = isset($opts['limit']) ? max(0, (int) $opts['limit']) : 0;
@@ -100,16 +89,6 @@ $log = static function (string $msg) use ($quiet): void {
         echo $msg, "\n";
     }
 };
-
-// --- Mode « reformat » : remet en forme les paroles déjà importées, sans réseau.
-if (isset($opts['reformat'])) {
-    exit(reformater($dryRun));
-}
-
-// --- Mode « reclassify » : re-déduit type + nom depuis la catégorie stockée.
-if (isset($opts['reclassify'])) {
-    exit(reclasser($dryRun));
-}
 
 // --- Réinitialisation (--refresh) --------------------------------------
 if ($refresh && !$dryRun) {
@@ -214,110 +193,6 @@ if ($faire('fetch')) {
     }
 
     $log(sprintf('Passe 2 terminée : %d avec paroles, %d sans paroles.', $avecParoles, $sansParoles));
-}
-
-// =======================================================================
-// Passe 3 — IMPORT : création des fiches « chants »
-// =======================================================================
-if ($faire('import')) {
-    $log("\n=== Passe 3 : création des fiches ===");
-
-    $aImporter = Database::all(
-        "SELECT ref, url, titre, code, code_repertoire, auteur, type, nom, chant, chant_id
-           FROM import_journal
-          WHERE source = ? AND statut = 'avec-paroles'",
-        [SOURCE]
-    );
-    $log(sprintf('%d fiches à créer / mettre à jour.', count($aImporter)));
-
-    // Chants déjà importés depuis catechisme-emmanuel.com, indexés par code IEV :
-    // une fiche chantonseneglise portant le même code vient les compléter plutôt
-    // que créer un doublon (l'import Emmanuel se lance en premier).
-    $fichesEmmanuel = [];
-    foreach (Database::all(
-        "SELECT code_repertoire, chant_id FROM import_journal
-          WHERE source = 'catechisme-emmanuel' AND code_repertoire IS NOT NULL AND chant_id IS NOT NULL"
-    ) as $e) {
-        $fichesEmmanuel[$e['code_repertoire']] = (int) $e['chant_id'];
-    }
-
-    if ($aImporter === []) {
-        $enAttente = (int) Database::value(
-            "SELECT COUNT(*) FROM import_journal WHERE source = ? AND statut IN ('a-importer', 'erreur')",
-            [SOURCE]
-        );
-        if ($enAttente > 0) {
-            $log(sprintf(
-                "  → %d fiche(s) pas encore téléchargée(s) : lancez d'abord « --phase=fetch »\n"
-                . "    (ou relancez sans --phase pour enchaîner toutes les passes).",
-                $enAttente
-            ));
-        } elseif ((int) Database::value('SELECT COUNT(*) FROM import_journal WHERE source = ?', [SOURCE]) === 0) {
-            $log("  → journal vide : lancez d'abord « --phase=enum » (ou sans --phase).");
-        }
-    }
-
-    $crees = $majs = $completes = 0;
-
-    foreach ($aImporter as $j) {
-        $chant  = Site::formatParoles((string) $j['chant']);
-        $iev    = $j['code_repertoire'] !== null && $j['code_repertoire'] !== '' ? (string) $j['code_repertoire'] : null;
-        $cibleEmmanuel = $iev !== null ? ($fichesEmmanuel[$iev] ?? null) : null;
-
-        // Rapprochement Emmanuel : compléter la fiche existante, pas de doublon.
-        // (idempotent : une reprise re-complète la même fiche.)
-        if ($cibleEmmanuel !== null
-            && ($j['chant_id'] === null || (int) $j['chant_id'] === $cibleEmmanuel)
-        ) {
-            $completes++;
-            if (!$dryRun) {
-                completerFicheEmmanuel($cibleEmmanuel, $j, $chant);
-                Database::run(
-                    "UPDATE import_journal SET statut = 'complete', chant_id = ?, traite_le = NOW()
-                      WHERE source = ? AND ref = ?",
-                    [$cibleEmmanuel, SOURCE, (string) $j['ref']]
-                );
-            }
-            continue;
-        }
-
-        $ligne = [
-            'feuille_id'  => null,
-            'nom'         => (string) ($j['nom'] ?: 'Chant'),
-            'type'        => (string) ($j['type'] ?: Site::TYPE_DEFAUT),
-            'position'    => 0,
-            'titre'       => $j['titre'],
-            'code'        => $j['code'],
-            'auteur'      => $j['auteur'],
-            'chant'       => $chant,
-            'nb_couplets' => count_couplets($chant, false),
-            'url'         => $j['url'],
-        ];
-
-        if ($dryRun) {
-            $crees++;
-            continue;
-        }
-
-        if ($j['chant_id'] !== null) {
-            Database::update('chants', $ligne, ['id' => (int) $j['chant_id']]);
-            $chantId = (int) $j['chant_id'];
-            $majs++;
-        } else {
-            $chantId = Database::insert('chants', $ligne);
-            $crees++;
-        }
-        Database::run(
-            "UPDATE import_journal SET statut = 'importe', chant_id = ?, traite_le = NOW()
-              WHERE source = ? AND ref = ?",
-            [$chantId, SOURCE, (string) $j['ref']]
-        );
-    }
-
-    $log(sprintf(
-        'Passe 3 terminée : %d créées, %d mises à jour, %d fiches Emmanuel complétées.',
-        $crees, $majs, $completes
-    ));
 }
 
 // --- Bilan --------------------------------------------------------------
@@ -457,107 +332,6 @@ function majJournalDonnees(int $ref, array $donnees, bool $dryRun): void
         ['statut' => 'avec-paroles', 'traite_le' => date('Y-m-d H:i:s')] + $donnees,
         ['source' => SOURCE, 'ref' => (string) $ref]
     );
-}
-
-/** Remet en forme les paroles des fiches déjà importées (sans réseau). */
-function reformater(bool $dryRun): int
-{
-    $lignes = Database::all(
-        'SELECT id, chant, nb_couplets FROM chants WHERE feuille_id IS NULL AND url LIKE ? AND chant IS NOT NULL',
-        [Site::BASE_URL . '/%']
-    );
-    $modifies = 0;
-    foreach ($lignes as $row) {
-        $propre = Site::formatParoles((string) $row['chant']);
-        $couplets = count_couplets($propre, false);
-        if ($propre !== (string) $row['chant'] || (int) $row['nb_couplets'] !== $couplets) {
-            $modifies++;
-            if (!$dryRun) {
-                Database::update('chants', ['chant' => $propre, 'nb_couplets' => $couplets], ['id' => (int) $row['id']]);
-            }
-        }
-    }
-    echo sprintf(
-        "Reformat : %d fiches examinées, %d reformatées%s.\n",
-        count($lignes), $modifies, $dryRun ? ' (dry-run)' : ''
-    );
-
-    return 0;
-}
-
-/**
- * Re-déduit type + nom depuis la catégorie brute mémorisée (sans réseau), et
- * répercute sur les fiches « chants » déjà créées. Utile après un ajustement du
- * mapping des types.
- */
-function reclasser(bool $dryRun): int
-{
-    $lignes = Database::all(
-        "SELECT ref, categorie, type, nom, chant_id FROM import_journal
-          WHERE source = ? AND categorie IS NOT NULL",
-        [SOURCE]
-    );
-    $modifies = 0;
-    foreach ($lignes as $row) {
-        $type = Site::typeInterne((string) $row['categorie']);
-        $nom  = tronque(Site::nomSection((string) $row['categorie'], $type), 120);
-        if ($type === $row['type'] && $nom === $row['nom']) {
-            continue;
-        }
-        $modifies++;
-        if ($dryRun) {
-            continue;
-        }
-        Database::update('import_journal', ['type' => $type, 'nom' => $nom], ['source' => SOURCE, 'ref' => $row['ref']]);
-        if ($row['chant_id'] !== null) {
-            Database::update('chants', ['type' => $type, 'nom' => $nom], ['id' => (int) $row['chant_id']]);
-        }
-    }
-    echo sprintf(
-        "Reclassify : %d fiches examinées, %d reclassées%s.\n",
-        count($lignes), $modifies, $dryRun ? ' (dry-run)' : ''
-    );
-
-    return 0;
-}
-
-/**
- * Complète une fiche importée depuis catechisme-emmanuel.com avec les données de
- * chantonseneglise.fr qui lui manquent : cote Secli, auteur, paroles plus
- * complètes, et classement (type / nom) si la fiche Emmanuel était restée sur le
- * type par défaut. L'URL de la fiche Emmanuel est conservée.
- *
- * @param array<string,mixed> $j  ligne import_journal (source chantonseneglise)
- */
-function completerFicheEmmanuel(int $chantId, array $j, string $chant): void
-{
-    $actuel = Database::one('SELECT type, nom, code, auteur, nb_couplets FROM chants WHERE id = ?', [$chantId]);
-    if ($actuel === null) {
-        return;
-    }
-
-    $maj = [];
-    if (trim((string) $actuel['code']) === '' && (string) $j['code'] !== '') {
-        $maj['code'] = tronque((string) $j['code'], 60);
-    }
-    if (trim((string) $actuel['auteur']) === '' && (string) $j['auteur'] !== '') {
-        $maj['auteur'] = tronque((string) $j['auteur'], 190);
-    }
-    $couplets = count_couplets($chant, false);
-    if ($couplets > (int) $actuel['nb_couplets']) {
-        $maj['chant']       = $chant;
-        $maj['nb_couplets'] = $couplets;
-    }
-    // Le type d'un chant Emmanuel est souvent resté sur le défaut (« entree ») :
-    // chantonseneglise le classe depuis un vrai libellé liturgique.
-    if ($actuel['type'] === Site::TYPE_DEFAUT && (string) $j['type'] !== '' && $j['type'] !== Site::TYPE_DEFAUT) {
-        $maj['type'] = (string) $j['type'];
-        $maj['nom']  = (string) ($j['nom'] ?: $actuel['nom']);
-    }
-
-    if ($maj !== []) {
-        Database::update('chants', $maj, ['id' => $chantId]);
-    }
 }
 
 /**

@@ -9,7 +9,7 @@ use App\Database;
 final class Chant
 {
     /** Colonnes recopiées d'une section à l'autre (duplication de feuille). */
-    public const FIELDS = ['titre', 'code', 'auteur', 'chant', 'nb_couplets', 'introduction', 'contenu', 'acclamation', 'reference', 'url'];
+    public const FIELDS = ['titre', 'code', 'auteur', 'chant', 'nb_couplets', 'introduction', 'contenu', 'acclamation', 'reference', 'url', 'repertoire_id'];
 
     /** @return array<int,array<string,mixed>> */
     public static function forFeuille(int $feuilleId): array
@@ -74,27 +74,6 @@ final class Chant
     }
 
     /**
-     * id d'une fiche de catalogue (feuille_id NULL, url renseignée) partageant la
-     * clé de dédoublonnage, ou null. $exclureId permet d'ignorer une fiche (p. ex.
-     * celle qu'on est en train de mettre à jour).
-     */
-    public static function catalogueParCle(string $titre, string $chant, ?int $exclureId = null): ?int
-    {
-        $cle = self::cleDedup($titre, $chant);
-        foreach (Database::all(
-            "SELECT id, titre, chant FROM chants WHERE feuille_id IS NULL AND url IS NOT NULL"
-        ) as $row) {
-            if ((int) $row['id'] !== $exclureId
-                && self::cleDedup((string) $row['titre'], (string) $row['chant']) === $cle
-            ) {
-                return (int) $row['id'];
-            }
-        }
-
-        return null;
-    }
-
-    /**
      * Nombre de lignes « parasites » (crédits, copyright, mentions éditoriales)
      * dans des paroles. Sert à départager deux fiches d'un même chant : la plus
      * propre l'emporte, à couplets égaux.
@@ -124,16 +103,56 @@ final class Chant
         return $n;
     }
 
-    /** Réduit une chaîne à ses lettres/chiffres, sans accents ni casse. */
-    private static function reduire(string $s): string
+    /**
+     * Réduit une chaîne à ses lettres/chiffres, sans accents ni casse. Sert à
+     * comparer des titres/codes « hors caractères spéciaux » (App\Models\RepertoireChant).
+     * Mémoïsée : appelée en boucle serrée sur les mêmes titres lors du
+     * rapprochement en masse (bin/import_repertoire.php --reset).
+     */
+    public static function reduire(string $s): string
     {
-        if (function_exists('transliterator_transliterate')) {
-            $s = (string) transliterator_transliterate('Any-Latin; Latin-ASCII; Lower()', $s);
-        } else {
-            $s = strtolower((string) iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s));
+        static $cache = [];
+        if (isset($cache[$s])) {
+            return $cache[$s];
         }
 
-        return (string) preg_replace('~[^a-z0-9]+~', '', $s);
+        if (function_exists('transliterator_transliterate')) {
+            $reduit = (string) transliterator_transliterate('Any-Latin; Latin-ASCII; Lower()', $s);
+        } else {
+            $reduit = strtolower((string) iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s));
+        }
+        $reduit = (string) preg_replace('~[^a-z0-9]+~', '', $reduit);
+
+        return $cache[$s] = $reduit;
+    }
+
+    /**
+     * Empreinte des $n premières lignes non vides d'un texte de chant (paroles
+     * déjà mises en forme — voir App\Import\Paroles::format), réduites (sans
+     * accents/ponctuation/casse) pour une comparaison robuste entre sources.
+     * Sert de repli quand le titre seul ne suffit pas à départager des doublons
+     * (App\Models\RepertoireChant::meilleurCandidat). Chaîne vide si le texte
+     * n'a aucune ligne exploitable.
+     *
+     * Chaque ligne réduite est tronquée à 120 caractères (une ligne sans retour
+     * peut être très longue) : le résultat tient toujours dans la colonne
+     * import_journal.empreinte_paroles (VARCHAR(255)) où il est mémorisé.
+     */
+    public static function premieresLignes(string $chant, int $n = 2): string
+    {
+        $lignes = [];
+        foreach (preg_split('~\r\n|\r|\n~', trim($chant)) ?: [] as $ligne) {
+            $ligne = mb_substr(self::reduire($ligne), 0, 120);
+            if ($ligne === '') {
+                continue;
+            }
+            $lignes[] = $ligne;
+            if (count($lignes) >= $n) {
+                break;
+            }
+        }
+
+        return implode('|', $lignes);
     }
 
     /**
@@ -162,48 +181,71 @@ final class Chant
     }
 
     /**
-     * Recherche dans l'historique des chants d'une paroisse (feuilles passées).
-     * Regroupe par clé de dédoublonnage et conserve la version avec le plus de couplets.
+     * Recherche dans l'historique des chants d'une paroisse (feuilles passées)
+     * et dans le répertoire partagé. Regroupe par clé de dédoublonnage et
+     * conserve la version avec le plus de couplets.
      *
-     * Sources : les autres feuilles de la paroisse (prioritaires) et les chants
-     * de catalogue importés (feuille_id NULL, url renseignée). La feuille en cours
-     * d'édition est exclue via $excludeFeuilleId. Le champ « url » n'est exposé
-     * qu'ici, pour l'interface chantre.
+     * Sources : les autres feuilles de la paroisse dont le chant ne provient pas
+     * déjà du répertoire (sinon déjà couvert par la recherche répertoire), et le
+     * répertoire partagé (App\Models\RepertoireChant, non filtré par paroisse).
+     * La feuille en cours d'édition est exclue via $excludeFeuilleId. Les champs
+     * « url »/« repertoire_id » ne sont exposés qu'ici, pour l'interface chantre.
+     *
+     * Recherche multi-mots : chaque mot doit apparaître dans au moins un des
+     * champs titre / code / auteur / source (URL), tous les mots étant requis.
+     * $texte étend la recherche aux paroles du chant.
      *
      * @return array<int,array<string,mixed>>
      */
-    public static function historique(int $paroisseId, string $q, ?string $type = null, ?int $excludeFeuilleId = null): array
+    public static function historique(int $paroisseId, string $q, ?string $type = null, ?int $excludeFeuilleId = null, bool $texte = false): array
     {
-        $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $q) . '%';
+        $templatesHistorique = ['ch.titre LIKE ?', 'ch.code LIKE ?', 'ch.auteur LIKE ?', 'ch.url LIKE ?'];
+        if ($texte) {
+            $templatesHistorique[] = 'ch.chant LIKE ?';
+        }
+        [$ouHistorique, $paramsHistorique] = Database::likeMots($q, $templatesHistorique);
 
         $historique = Database::all(
-            "SELECT ch.titre, ch.code, ch.auteur, ch.chant, ch.nb_couplets, ch.type, ch.feuille_id
+            "SELECT ch.titre, ch.code, ch.auteur, ch.chant, ch.nb_couplets, ch.type, ch.feuille_id, ch.url
              FROM chants ch
              JOIN feuilles_chant f ON f.id = ch.feuille_id
              JOIN clochers c ON c.id = f.clocher_id
              WHERE c.paroisse_id = ?
                AND f.id <> ?
+               AND ch.repertoire_id IS NULL
                AND ch.chant IS NOT NULL AND ch.chant <> ''
-               AND (ch.titre LIKE ? OR ch.code LIKE ?)
+               AND ($ouHistorique)
              ORDER BY f.date_heure DESC
              LIMIT 300",
-            [$paroisseId, $excludeFeuilleId ?? 0, $like, $like]
+            [$paroisseId, $excludeFeuilleId ?? 0, ...$paramsHistorique]
         );
 
-        $catalogue = Database::all(
-            "SELECT ch.titre, ch.code, ch.auteur, ch.chant, ch.nb_couplets, ch.type, ch.url
-             FROM chants ch
-             WHERE ch.feuille_id IS NULL AND ch.url IS NOT NULL
-               AND ch.chant IS NOT NULL AND ch.chant <> ''
-               AND (ch.titre LIKE ? OR ch.code LIKE ?)
-             ORDER BY ch.titre ASC
+        $templatesRepertoire = [
+            'r.titre LIKE ?',
+            'r.code LIKE ?',
+            'r.auteur LIKE ?',
+            'r.mots_cles LIKE ?',
+            'EXISTS (SELECT 1 FROM import_journal j2 WHERE j2.chant_id = r.id AND j2.url LIKE ?)',
+        ];
+        if ($texte) {
+            $templatesRepertoire[] = 'r.chant LIKE ?';
+        }
+        [$ouRepertoire, $paramsRepertoire] = Database::likeMots($q, $templatesRepertoire);
+
+        $repertoire = Database::all(
+            "SELECT r.id AS repertoire_id, r.titre, r.code, r.auteur, r.chant, r.nb_couplets, r.type, r.ordinaire,
+                    (SELECT j.url FROM import_journal j WHERE j.chant_id = r.id ORDER BY j.traite_le DESC LIMIT 1) AS url
+             FROM repertoire_chants r
+             WHERE r.chant IS NOT NULL AND r.chant <> ''
+               AND ($ouRepertoire)
+             ORDER BY r.titre ASC
              LIMIT 300",
-            [$like, $like]
+            $paramsRepertoire
         );
 
         $groups = [];
         $typesByKey = [];
-        foreach ([...$historique, ...$catalogue] as $row) {
+        foreach ([...$historique, ...$repertoire] as $row) {
             $key = self::cleDedup((string) $row['titre'], (string) $row['chant']);
             $typesByKey[$key][$row['type']] = true;
 
@@ -213,13 +255,15 @@ final class Chant
                 : count_couplets($row['chant'], false);
             if (!isset($groups[$key]) || $couplets > $groups[$key]['_couplets']) {
                 $groups[$key] = [
-                    'titre'      => $row['titre'],
-                    'code'       => $row['code'],
-                    'auteur'     => $row['auteur'],
-                    'chant'      => $row['chant'],
-                    'feuille_id' => isset($row['feuille_id']) ? (int) $row['feuille_id'] : null,
-                    'url'        => $groups[$key]['url'] ?? ($row['url'] ?? null),
-                    '_couplets'  => $couplets,
+                    'titre'         => $row['titre'],
+                    'code'          => $row['code'],
+                    'auteur'        => $row['auteur'],
+                    'chant'         => $row['chant'],
+                    'feuille_id'    => isset($row['feuille_id']) ? (int) $row['feuille_id'] : null,
+                    'repertoire_id' => isset($row['repertoire_id']) ? (int) $row['repertoire_id'] : null,
+                    'ordinaire'     => $row['ordinaire'] ?? null,
+                    'url'           => $groups[$key]['url'] ?? ($row['url'] ?? null),
+                    '_couplets'     => $couplets,
                 ];
             } elseif (($row['url'] ?? null) !== null && ($groups[$key]['url'] ?? null) === null) {
                 $groups[$key]['url'] = $row['url'];

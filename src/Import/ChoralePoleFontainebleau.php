@@ -79,6 +79,11 @@ final class ChoralePoleFontainebleau
     /**
      * Extrait les données d'une fiche chant.
      *
+     * Les paroles renvoyées sont brutes (Paroles::multiligne, pas Paroles::format) :
+     * la mise en forme (couplets/refrain) se fait après coup, pas à la récupération
+     * (voir bin/import_repertoire.php), pour ne jamais avoir à refaire une requête
+     * réseau si la logique de mise en forme évolue.
+     *
      * @param string $themeListe  thématique vue dans la liste (le seul endroit fiable).
      * @return array{titre:string,code:string,code_repertoire:?string,auteur:string,editeur:string,theme:string,type:string,nom:string,chant:string}|null
      *         null si la fiche ne contient pas de paroles exploitables.
@@ -100,7 +105,7 @@ final class ChoralePoleFontainebleau
         $auteur  = self::auteurs($refs);
         $editeur = self::editeur($refs);
 
-        $chant = Paroles::format(self::paroles($article));
+        $chant = self::paroles($article);
 
         if ($titre === '' || mb_strlen($chant) < 15) {
             return null;

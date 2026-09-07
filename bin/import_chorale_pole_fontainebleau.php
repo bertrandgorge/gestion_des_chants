@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Import des chants du site « Chorale Paroissiale du Pôle Missionnaire de
  * Fontainebleau » (https://choralepolefontainebleau.org).
  *
- * Trois passes suivies dans « import_journal » (source = chorale-pole-fontainebleau),
+ * Deux passes suivies dans « import_journal » (source = chorale-pole-fontainebleau),
  * toutes relançables (une exécution sans --phase les enchaîne) :
  *
  *   1. ENUM   : charge /category/bibliotheque/chants/ (un tableau y liste TOUS les
@@ -14,13 +14,11 @@ declare(strict_types=1);
  *               en « a-importer » (titre, thématique et lien sont déjà connus ici).
  *   2. FETCH  : pour chaque « a-importer », charge la fiche et en déduit
  *               « avec-paroles » (données parsées) ou « sans-paroles ».
- *   3. IMPORT : crée dans « chants » une fiche par ligne « avec-paroles »
- *               (feuille_id = NULL, url = fiche source), puis passe à « importe ».
  *
- * Comme les autres imports, ces fiches de catalogue alimentent l'autocomplétion
- * de l'éditeur de feuille ; les doublons éventuels avec chantonseneglise.fr /
- * catechisme-emmanuel.com sont regroupés à l'affichage (titre + cote Secli),
- * la version avec le plus de couplets étant proposée en priorité.
+ * La création / le dédoublonnage des fiches du répertoire (App\Models\RepertoireChant)
+ * à partir des lignes « avec-paroles » est une passe séparée, commune à toutes
+ * les sources (y compris les doublons éventuels avec chantonseneglise.fr /
+ * catechisme-emmanuel.com) : voir bin/import_repertoire.php.
  *
  * Le « type » est un slug de App\SectionTypes::DEFAUT, déduit de la thématique du
  * site (« entree » par défaut).
@@ -28,15 +26,12 @@ declare(strict_types=1);
  * Usage :
  *   php bin/import_chorale_pole_fontainebleau.php
  *   php bin/import_chorale_pole_fontainebleau.php --phase=fetch --limit=50
- *   php bin/import_chorale_pole_fontainebleau.php --reformat
  *
  * Options :
- *   --phase=NOM   enum | fetch | import : ne lancer qu'une passe (défaut : les 3).
+ *   --phase=NOM   enum | fetch : ne lancer qu'une passe (défaut : les 2).
  *   --limit=N     Passe FETCH : s'arrêter après N fiches téléchargées.
  *   --delay=MS    Pause minimale entre requêtes HTTP en ms (défaut : 2000).
- *   --refresh     Repart de zéro : remet toutes les lignes en « a-importer »
- *                 (les fiches « chants » existantes sont mises à jour, pas recréées).
- *   --reformat    Remet en forme les paroles déjà importées, sans réseau, puis s'arrête.
+ *   --refresh     Repart de zéro : remet toutes les lignes en « a-importer ».
  *   --dry-run     N'écrit rien en base.
  *   --quiet       Affiche moins de messages.
  *   -h, --help    Cette aide.
@@ -54,7 +49,7 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/src/bootstrap.php';
 
 // --- Options -------------------------------------------------------------
-$opts = getopt('h', ['phase:', 'limit:', 'delay:', 'refresh', 'reformat', 'dry-run', 'quiet', 'help']);
+$opts = getopt('h', ['phase:', 'limit:', 'delay:', 'refresh', 'dry-run', 'quiet', 'help']);
 
 if (isset($opts['h']) || isset($opts['help'])) {
     $doc = (string) file_get_contents(__FILE__);
@@ -63,8 +58,8 @@ if (isset($opts['h']) || isset($opts['help'])) {
 }
 
 $phase = isset($opts['phase']) ? strtolower((string) $opts['phase']) : null;
-if ($phase !== null && !in_array($phase, ['enum', 'fetch', 'import'], true)) {
-    exit("--phase doit valoir enum, fetch ou import.\n");
+if ($phase !== null && !in_array($phase, ['enum', 'fetch'], true)) {
+    exit("--phase doit valoir enum ou fetch.\n");
 }
 $limit   = isset($opts['limit']) ? max(0, (int) $opts['limit']) : 0;
 $delayMs = isset($opts['delay']) ? max(0, (int) $opts['delay']) : 500;
@@ -77,10 +72,6 @@ $log = static function (string $msg) use ($quiet): void {
         echo $msg, "\n";
     }
 };
-
-if (isset($opts['reformat'])) {
-    exit(reformater($dryRun));
-}
 
 if (isset($opts['refresh']) && !$dryRun) {
     Database::run(
@@ -170,62 +161,6 @@ if ($faire('fetch')) {
     $log(sprintf('Passe 2 terminée : %d avec paroles, %d sans paroles.', $avecParoles, $sansParoles));
 }
 
-// =======================================================================
-// Passe 3 — IMPORT : création des fiches « chants »
-// =======================================================================
-if ($faire('import')) {
-    $log("\n=== Passe 3 : création des fiches ===");
-
-    $aImporter = Database::all(
-        "SELECT ref, url, titre, code, auteur, type, nom, chant, chant_id
-           FROM import_journal
-          WHERE source = ? AND statut = 'avec-paroles'",
-        [SOURCE]
-    );
-    $log(sprintf('%d fiches à créer / mettre à jour.', count($aImporter)));
-
-    $crees = $majs = 0;
-
-    foreach ($aImporter as $j) {
-        $chant    = Site::formatParoles((string) $j['chant']);
-        $couplets = count_couplets($chant, false);
-
-        $ligne = [
-            'feuille_id'  => null,
-            'nom'         => (string) ($j['nom'] ?: 'Chant'),
-            'type'        => (string) ($j['type'] ?: \App\Import\TypeLiturgique::DEFAUT),
-            'position'    => 0,
-            'titre'       => $j['titre'],
-            'code'        => $j['code'],
-            'auteur'      => $j['auteur'],
-            'chant'       => $chant,
-            'nb_couplets' => $couplets,
-            'url'         => $j['url'],
-        ];
-
-        if ($dryRun) {
-            $crees++;
-            continue;
-        }
-
-        if ($j['chant_id'] !== null) {
-            Database::update('chants', $ligne, ['id' => (int) $j['chant_id']]);
-            $chantId = (int) $j['chant_id'];
-            $majs++;
-        } else {
-            $chantId = Database::insert('chants', $ligne);
-            $crees++;
-        }
-        Database::run(
-            "UPDATE import_journal SET statut = 'importe', chant_id = ?, traite_le = NOW()
-              WHERE source = ? AND ref = ?",
-            [$chantId, SOURCE, (string) $j['ref']]
-        );
-    }
-
-    $log(sprintf('Passe 3 terminée : %d créées, %d mises à jour.', $crees, $majs));
-}
-
 // --- Bilan --------------------------------------------------------------
 echo "\nÉtat du journal (import_journal) :\n";
 $bilan = Database::all(
@@ -312,32 +247,6 @@ function majJournalDonnees(string $ref, array $donnees, bool $dryRun): void
         ['statut' => 'avec-paroles', 'traite_le' => date('Y-m-d H:i:s')] + $donnees,
         ['source' => SOURCE, 'ref' => $ref]
     );
-}
-
-/** Remet en forme les paroles des fiches déjà importées (sans réseau). */
-function reformater(bool $dryRun): int
-{
-    $lignes = Database::all(
-        'SELECT id, chant, nb_couplets FROM chants WHERE feuille_id IS NULL AND url LIKE ? AND chant IS NOT NULL',
-        [Site::BASE_URL . '/%']
-    );
-    $modifies = 0;
-    foreach ($lignes as $row) {
-        $propre   = Site::formatParoles((string) $row['chant']);
-        $couplets = count_couplets($propre, false);
-        if ($propre !== (string) $row['chant'] || (int) $row['nb_couplets'] !== $couplets) {
-            $modifies++;
-            if (!$dryRun) {
-                Database::update('chants', ['chant' => $propre, 'nb_couplets' => $couplets], ['id' => (int) $row['id']]);
-            }
-        }
-    }
-    echo sprintf(
-        "Reformat : %d fiches examinées, %d reformatées%s.\n",
-        count($lignes), $modifies, $dryRun ? ' (dry-run)' : ''
-    );
-
-    return 0;
 }
 
 /** Tronque une chaîne à $max caractères (sécurité colonnes VARCHAR). */

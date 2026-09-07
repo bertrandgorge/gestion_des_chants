@@ -14,20 +14,26 @@ $isAdmin = Auth::isAdmin();
 ?>
 <nav class="navbar navbar-expand bg-body-tertiary border-bottom">
     <div class="container">
-        <?php if ($isAdmin): ?>
-            <ul class="navbar-nav gap-1">
-                <li class="nav-item">
-                    <a class="nav-link<?= $section === 'feuilles' ? ' active' : '' ?>"
-                       href="/app"<?= $section === 'feuilles' ? ' aria-current="page"' : '' ?>>Feuilles de messe</a>
-                </li>
+        <ul class="navbar-nav gap-1">
+            <li class="nav-item">
+                <a class="nav-link<?= $section === 'feuilles' ? ' active' : '' ?>"
+                   href="/app"<?= $section === 'feuilles' ? ' aria-current="page"' : '' ?>>Feuilles de messe</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link<?= $section === 'repertoire' ? ' active' : '' ?>"
+                   href="/app/repertoire"<?= $section === 'repertoire' ? ' aria-current="page"' : '' ?>>Répertoire</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link<?= $section === 'statistiques' ? ' active' : '' ?>"
+                   href="/app/statistiques"<?= $section === 'statistiques' ? ' aria-current="page"' : '' ?>>Statistiques</a>
+            </li>
+            <?php if ($isAdmin): ?>
                 <li class="nav-item">
                     <a class="nav-link<?= $section === 'admin' ? ' active' : '' ?>"
                        href="/admin/paroisse"<?= $section === 'admin' ? ' aria-current="page"' : '' ?>>Administration</a>
                 </li>
-            </ul>
-        <?php else: ?>
-            <a class="navbar-brand" href="/app">Feuilles de messe</a>
-        <?php endif; ?>
+            <?php endif; ?>
+        </ul>
         <div class="ms-auto d-flex align-items-center gap-2">
             <span class="d-none d-sm-inline text-body-secondary small"><?= e($user['email']) ?></span>
             <form method="post" action="/logout" class="d-inline">

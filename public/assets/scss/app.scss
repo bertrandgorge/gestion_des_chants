@@ -215,17 +215,26 @@ body:not(.public-body) .list-group:not(.feuille-choix):not(.autocomplete-panel) 
 
 // Glyphes utilisés dans les vues (codepoints : bootstrap-icons.json).
 $bi-glyphes: (
+    "arrow-down-up":      "\f127",
     "arrow-left":         "\f12f",
     "arrow-repeat":       "\f130",
     "box-arrow-up-right": "\f1c5",
     "chevron-right":      "\f285",
     "circle-half":        "\f288",
+    "cloud-download":     "\f29b",
     "files":              "\f3c2",
     "gear-fill":          "\f3e2",
     "grip-vertical":      "\f3fe",
+    "journal-bookmark":   "\f43d",
+    "journal-plus":       "\f442",
+    "link-45deg":         "\f470",
+    "music-note-beamed":  "\f49e",
     "plus-lg":            "\f64d",
     "printer":            "\f501",
     "projector":          "\f6ac",
+    "scissors":           "\f528",
+    "search":             "\f52a",
+    "search-heart":       "\f787",
     "trash3":             "\f78b",
     "x-lg":               "\f659",
 );
@@ -374,11 +383,16 @@ $liturgie-couleurs: (
     top: 0;
     display: flex;
     gap: .4rem;
-    justify-content: flex-end;
+    justify-content: space-between;
     padding: .5rem .75rem;
     background: var(--bs-body-bg);
     border-bottom: 1px solid var(--bs-border-color);
     z-index: 10;
+
+    .public-toolbar-groupe {
+        display: flex;
+        gap: .4rem;
+    }
 }
 
 .public-main {
@@ -414,6 +428,14 @@ $liturgie-couleurs: (
         margin-bottom: .75rem;
     }
 
+    .feuille-chant-partitions {
+        display: none;
+        color: var(--bs-secondary-color);
+        font-size: .85em;
+        font-style: italic;
+        margin-bottom: .6rem;
+    }
+
     .feuille-chant-meta { margin-bottom: .5rem; }
     .feuille-ref { color: var(--bs-secondary-color); font-style: italic; margin-bottom: .5rem; }
     .feuille-lecture-titre { font-weight: 600; }
@@ -430,6 +452,8 @@ $liturgie-couleurs: (
 }
 
 .feuille-choix .list-group-item { text-transform: capitalize; }
+
+body.show-chant-liens .feuille-chant-partitions { display: block; }
 
 // --- Mode présentation (projection, blanc sur noir) ---------------
 .presentation { display: none; }

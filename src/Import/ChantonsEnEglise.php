@@ -73,6 +73,11 @@ final class ChantonsEnEglise
     /**
      * Extrait les données d'une fiche /voir-texte/{id}.
      *
+     * Les paroles renvoyées sont brutes (Paroles::multiligne, pas Paroles::format) :
+     * la mise en forme (couplets/refrain) se fait après coup, pas à la récupération
+     * (voir bin/import_repertoire.php), pour ne jamais avoir à refaire une requête
+     * réseau si la logique de mise en forme évolue.
+     *
      * @return array{titre:string,code:string,auteur:string,editeur:string,code_repertoire:?string,categorie:string,type:string,chant:string}|null
      *         null si le chant n'a pas de paroles exploitables (raisons contractuelles…).
      */
@@ -110,7 +115,7 @@ final class ChantonsEnEglise
             'code_repertoire' => Repertoire::estEmmanuel($editeur) ? Repertoire::iev($categorieBrute) : null,
             'categorie'      => $categorie,
             'type'           => TypeLiturgique::deduire($categorie),
-            'chant'          => Paroles::format($chant),
+            'chant'          => $chant,
         ];
     }
 

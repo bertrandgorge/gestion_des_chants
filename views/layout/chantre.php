@@ -13,7 +13,7 @@ use App\Csrf;
     <link rel="stylesheet" href="/assets/css/app.css">
 </head>
 <body class="d-flex flex-column min-vh-100">
-<?php $section = 'feuilles'; require APP_ROOT . '/views/partials/navbar.php'; ?>
+<?php $section = $section ?? 'feuilles'; require APP_ROOT . '/views/partials/navbar.php'; ?>
 <main class="container py-4 flex-grow-1">
     <?php require APP_ROOT . '/views/partials/flash.php'; ?>
     <?= $content ?>

@@ -84,11 +84,15 @@ final class ImportChantonsEnEgliseTest extends TestCase
         $this->assertSame('Jean-Louis Fradon / Bruno Ben', $data['auteur']);
         $this->assertSame('Chant de communion', $data['categorie']);
         $this->assertSame('communion', $data['type']);
+        // Paroles brutes (Paroles::multiligne) : la mise en forme (R/, 1., …) se
+        // fait après coup, pas à la récupération — voir bin/import_repertoire.php.
         $this->assertSame(
-            "R/ Devenez ce que vous recevez,\n"
+            "REFRAIN\n"
+            . "Devenez ce que vous recevez,\n"
             . "Vous êtes le corps du Christ.\n"
             . "\n"
-            . "1. Baptisés en un seul Esprit,\n"
+            . "1\n"
+            . "Baptisés en un seul Esprit,\n"
             . "nous ne formons qu'un seul corps.",
             $data['chant']
         );

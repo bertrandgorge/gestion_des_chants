@@ -129,6 +129,28 @@ final class Database
         return self::run("DELETE FROM $table WHERE $cond", $where)->rowCount();
     }
 
+    /**
+     * Construit une clause WHERE « recherche multi-mots » : chaque mot de $q doit
+     * correspondre à au moins un des gabarits de $templates (OR), tous les mots
+     * étant requis (AND). Chaque gabarit est un fragment SQL contenant un seul
+     * « ? » (ex. "titre LIKE ?", ou une sous-requête EXISTS sur une autre table).
+     *
+     * @param list<string> $templates
+     * @return array{0:string,1:list<string>} [clause SQL, paramètres à passer à all()/one()]
+     */
+    public static function likeMots(string $q, array $templates): array
+    {
+        $conditions = [];
+        $params = [];
+        foreach (preg_split('/\s+/', trim($q), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $mot) {
+            $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $mot) . '%';
+            $conditions[] = '(' . implode(' OR ', $templates) . ')';
+            array_push($params, ...array_fill(0, count($templates), $like));
+        }
+
+        return [implode(' AND ', $conditions), $params];
+    }
+
     public static function transaction(callable $fn): mixed
     {
         $pdo = self::pdo();

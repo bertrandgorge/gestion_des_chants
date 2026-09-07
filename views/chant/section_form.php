@@ -1,6 +1,6 @@
 <?php
 
-/** @var array $section @var array $feuille @var string $comportement */
+/** @var array $section @var array $feuille @var string $comportement @var ?array $stats @var array $urls */
 use App\Csrf;
 use App\SectionTypes;
 
@@ -28,6 +28,10 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
         <div class="position-relative">
             <label class="form-label" for="titre">Titre</label>
             <input type="text" class="form-control" id="titre" name="titre" value="<?= e($section['titre']) ?>" autocomplete="off" data-search-field>
+            <div class="form-check mt-1">
+                <input class="form-check-input" type="checkbox" id="chercher-texte" data-search-text>
+                <label class="form-check-label small" for="chercher-texte">Chercher aussi dans le texte des chants</label>
+            </div>
             <div class="autocomplete-panel list-group shadow-sm" data-suggestions hidden></div>
         </div>
         <div class="row g-2">
@@ -41,10 +45,28 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
             </div>
         </div>
         <input type="hidden" name="url" value="<?= e($section['url'] ?? '') ?>" data-url-field>
-        <div class="form-text<?= empty($section['url']) ? ' d-none' : '' ?>" data-url-display>
+        <div class="form-text<?= empty($section['url']) || count($urls ?? []) > 1 ? ' d-none' : '' ?>" data-url-display>
             <i class="bi bi-link-45deg"></i>
             <a href="<?= e($section['url'] ?? '') ?>" target="_blank" rel="noopener noreferrer" data-url-link><?= e($section['url'] ?? '') ?></a>
         </div>
+        <?php if (count($urls ?? []) > 1): ?>
+            <div class="form-text">
+                <i class="bi bi-link-45deg"></i> Trouvé sur plusieurs sources :
+                <ul class="small mb-0 ps-3">
+                    <?php foreach ($urls as $u): ?>
+                        <li>
+                            <?= e($u['source']) ?>
+                            <?php if ($u['url']): ?>
+                                — <a href="<?= e($u['url']) ?>" target="_blank" rel="noopener noreferrer"><?= e($u['url']) ?></a>
+                            <?php else: ?>
+                                <span class="text-body-secondary">(pas d'URL)</span>
+                            <?php endif; ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
+        <input type="hidden" name="repertoire_id" value="<?= e((string) ($section['repertoire_id'] ?? '')) ?>" data-repertoire-field>
         <div>
             <label class="form-label" for="chant">Texte du chant</label>
             <textarea class="form-control font-monospace" id="chant" name="chant" rows="12" data-chant-input><?= e($section['chant']) ?></textarea>
@@ -127,9 +149,22 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
     <?php endif; ?>
 
     <div class="d-flex justify-content-between">
-        <div>
+        <div class="d-flex gap-2">
             <?php if ($estChant): ?>
                 <button type="button" class="btn btn-outline-secondary" data-clear-chant>Vider</button>
+            <?php endif; ?>
+            <?php if ($estChant && !empty($section['repertoire_id'])): ?>
+                <a class="btn btn-outline-secondary" href="/app/repertoire/<?= (int) $section['repertoire_id'] ?>" target="_blank" rel="noopener noreferrer">
+                    <i class="bi bi-journal-bookmark"></i> Ouvrir dans le répertoire
+                </a>
+            <?php endif; ?>
+            <?php if ($estChant && empty($section['repertoire_id']) && trim((string) $section['titre']) !== '' && trim((string) $section['chant']) !== ''): ?>
+                <!-- Même formulaire que « Enregistrer » (un <form> imbriqué serait invalide en
+                     HTML et casserait les deux) : on redirige juste sa soumission via formaction. -->
+                <button type="submit" class="btn btn-outline-secondary" formnovalidate
+                        formaction="/app/sections/<?= $section['id'] ?>/ajouter-repertoire">
+                    <i class="bi bi-journal-plus"></i> Ajouter au répertoire
+                </button>
             <?php endif; ?>
         </div>
         <div class="d-flex gap-2">
@@ -138,3 +173,7 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
         </div>
     </div>
 </form>
+
+<?php if ($stats !== null): ?>
+    <?= view('partials/stats_chant', $stats) ?>
+<?php endif; ?>

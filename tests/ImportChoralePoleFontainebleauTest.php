@@ -81,10 +81,11 @@ final class ImportChoralePoleFontainebleauTest extends TestCase
         $this->assertSame('E. Baranger', $data['auteur']);
         $this->assertSame('Editions de l’Emmanuel', $data['editeur']);
         $this->assertSame('entree', $data['type']);
+        // Paroles brutes (Paroles::multiligne) : la mise en forme (R/, 1., …) se
+        // fait après coup, pas à la récupération — voir bin/import_repertoire.php.
         $this->assertSame(
-            "R/ A Toi puissance et gloire,\n"
+            "R. A Toi puissance et gloire,\n"
             . "A Toi honneur et force,\n"
-            . "\n"
             . "1. Toi l’agneau immolé(bis)\n"
             . "Tu t’es livré pour nous(bis)",
             $data['chant']
@@ -120,12 +121,13 @@ final class ImportChoralePoleFontainebleauTest extends TestCase
         $this->assertSame('Claude Bernard / François d’Assise / JO. Akepsimas', $data['auteur']);
         $this->assertSame('Bayard Chantons en église', $data['editeur']);
         $this->assertSame('entree', $data['type']);
+        // Paroles brutes (Paroles::multiligne) : la mise en forme (R/, 1., …) se
+        // fait après coup, pas à la récupération — voir bin/import_repertoire.php.
         $this->assertSame(
-            "R/ Louange à Toi, Seigneur du monde,\n"
-            . "\n"
-            . "1. Pour l’univers, l’espace et le firmament,\n"
+            "Refrain : Louange à Toi, Seigneur du monde,\n"
+            . "1- Pour l’univers, l’espace et le firmament,\n"
             . "Pour le ciel, le soleil, la lune,",
-            $data['chant']
+            trim((string) $data['chant'])
         );
         $this->assertStringNotContainsString('pédagogiques', $data['chant']);
     }

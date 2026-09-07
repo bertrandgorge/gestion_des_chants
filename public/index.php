@@ -12,6 +12,8 @@ use App\Controllers\ClocherController;
 use App\Controllers\FeuilleController;
 use App\Controllers\ParoisseController;
 use App\Controllers\PublicController;
+use App\Controllers\RepertoireController;
+use App\Controllers\StatistiqueController;
 use App\Controllers\UtilisateurController;
 use App\Router;
 
@@ -61,9 +63,25 @@ $router->get('/app/sections/{id}', [ChantController::class, 'editSection']);
 $router->post('/app/sections/{id}', [ChantController::class, 'saveSection']);
 $router->post('/app/sections/{id}/apercu', [ChantController::class, 'previewSection']);
 $router->post('/app/sections/{id}/reprendre-ordinaire', [ChantController::class, 'reprendreOrdinaire']);
+$router->post('/app/sections/{id}/ajouter-repertoire', [ChantController::class, 'ajouterAuRepertoire']);
 $router->get('/app/chants/recherche', [ChantController::class, 'search']);
 
+// --- Répertoire de chants (accessible à tous les utilisateurs connectés) --
+$router->get('/app/repertoire', [RepertoireController::class, 'index']);
+$router->get('/app/repertoire/doublons', [RepertoireController::class, 'doublons']);
+$router->post('/app/repertoire/importer', [RepertoireController::class, 'importer']);
+$router->post('/app/repertoire/fusionner', [RepertoireController::class, 'fusionner']);
+$router->get('/app/repertoire/{id}', [RepertoireController::class, 'edit']);
+$router->post('/app/repertoire/{id}', [RepertoireController::class, 'update']);
+$router->post('/app/repertoire/{id}/supprimer', [RepertoireController::class, 'supprimer']);
+$router->post('/app/repertoire/{id}/urls/{source}/{ref}/dedoublonner', [RepertoireController::class, 'dedoublonner']);
+
+// --- Statistiques d'utilisation (accessible à tous les utilisateurs connectés) --
+$router->get('/app/statistiques', [StatistiqueController::class, 'index']);
+
 // --- Interface paroissien (catch-all, en dernier) --------------------
+$router->get('/{paroisse}/{clocher}/imprimer', [PublicController::class, 'imprimer']);
+$router->get('/{paroisse}/{clocher}/{datetime}/imprimer', [PublicController::class, 'imprimer']);
 $router->get('/{paroisse}/{clocher}', [PublicController::class, 'show']);
 $router->get('/{paroisse}/{clocher}/{datetime}', [PublicController::class, 'show']);
 

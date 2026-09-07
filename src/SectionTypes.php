@@ -94,6 +94,21 @@ final class SectionTypes
         return null;
     }
 
+    /**
+     * Libellé d'un type de section pour l'affichage, y compris hors DEFAUT :
+     * « alleluia » (type du répertoire, sans section dédiée sur une feuille —
+     * voir App\Controllers\RepertoireController::typesDisponibles) et les
+     * sections personnalisées, à défaut affichées telles quelles.
+     */
+    public static function libelle(string $type): string
+    {
+        if ($type === 'alleluia') {
+            return 'Alléluia';
+        }
+
+        return self::nomDefaut($type) ?? ucfirst(str_replace('_', ' ', $type));
+    }
+
     public static function estOrdinaire(string $type): bool
     {
         return in_array($type, self::ORDINAIRE, true);

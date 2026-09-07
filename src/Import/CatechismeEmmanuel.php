@@ -76,6 +76,11 @@ final class CatechismeEmmanuel
     /**
      * Extrait les données d'une fiche /chants/{slug}/.
      *
+     * Les paroles renvoyées sont brutes (Paroles::multiligne, pas Paroles::format) :
+     * la mise en forme (couplets/refrain) se fait après coup, pas à la récupération
+     * (voir bin/import_repertoire.php), pour ne jamais avoir à refaire une requête
+     * réseau si la logique de mise en forme évolue.
+     *
      * @param string  $codeListe  code IEV vu dans la liste (repli si la fiche ne le porte pas).
      * @return array{titre:string,code_repertoire:?string,theme:string,type:string,nom:string,auteur:string,chant:string}|null
      *         null si la fiche ne contient pas de paroles exploitables.
@@ -102,7 +107,7 @@ final class CatechismeEmmanuel
         if ($bloc === '') {
             $bloc = self::premierGroupe('~<div class="chant-contenu">(.*)~s', $html);
         }
-        $chant = Paroles::format(Paroles::multiligne($bloc));
+        $chant = Paroles::multiligne($bloc);
 
         if ($titre === '' || mb_strlen($chant) < 15) {
             return null;

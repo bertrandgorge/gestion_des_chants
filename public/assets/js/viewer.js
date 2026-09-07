@@ -81,6 +81,17 @@
         return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
 
+    var chantLiensBtn = document.querySelector('[data-chant-liens]');
+    if (chantLiensBtn) {
+        chantLiensBtn.addEventListener('click', function () {
+            var show = !document.body.classList.contains('show-chant-liens');
+            document.body.classList.toggle('show-chant-liens', show);
+            chantLiensBtn.classList.toggle('active', show);
+            chantLiensBtn.setAttribute('aria-pressed', show ? 'true' : 'false');
+            setCookie('chant_liens', show ? '1' : '0');
+        });
+    }
+
     var toggle = document.querySelector('[data-theme-toggle]');
     if (toggle) {
         toggle.addEventListener('click', function () {

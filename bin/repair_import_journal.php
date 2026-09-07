@@ -3,18 +3,19 @@
 declare(strict_types=1);
 
 /**
- * Répare les liens import_journal.chant_id ↔ chants.
+ * Répare les liens import_journal.chant_id ↔ repertoire_chants.
  *
- * Si la table « chants » est rechargée depuis une sauvegarde alors que
- * « import_journal » ne l'est pas (ou l'inverse), les chant_id notés dans le
- * journal ne désignent plus le bon chant — voire un chant sans rapport, si
- * l'auto-increment a réattribué l'identifiant à un import ultérieur.
+ * Si la table « repertoire_chants » est rechargée depuis une sauvegarde alors
+ * que « import_journal » ne l'est pas (ou l'inverse), les chant_id notés dans
+ * le journal ne désignent plus la bonne fiche — voire une fiche sans rapport,
+ * si l'auto-increment a réattribué l'identifiant à un import ultérieur.
  *
  * Pour chaque ligne « importe » / « complete », ce script :
- *   1. garde le lien s'il est correct (le chant pointé a la même clé de
+ *   1. garde le lien s'il est correct (la fiche pointée a la même clé de
  *      dédoublonnage — titre + 1re ligne du refrain — que la ligne de journal) ;
- *   2. sinon, relie à la fiche de catalogue de même url, puis de même clé ;
- *   3. sinon (le chant a disparu), recrée la fiche depuis les données conservées
+ *   2. sinon, relie à la fiche du répertoire déjà associée à une autre ligne de
+ *      journal de même url, puis de même clé ;
+ *   3. sinon (la fiche a disparu), la recrée depuis les données conservées
  *      dans le journal — sans aucune requête réseau.
  *
  * Les données parsées (titre, code, auteur, type, nom, paroles) restant toujours
@@ -36,6 +37,7 @@ use App\Database;
 use App\Import\Paroles;
 use App\Import\TypeLiturgique;
 use App\Models\Chant;
+use App\Models\RepertoireChant;
 
 if (PHP_SAPI !== 'cli') {
     exit("Ce script s'exécute en ligne de commande uniquement.\n");
@@ -57,14 +59,20 @@ $log = static function (string $msg) use ($quiet): void {
     }
 };
 
-// --- Index des fiches de catalogue existantes -------------------------
-$parUrl = [];
+// --- Index des fiches du répertoire existantes -------------------------
 $parCle = [];
-foreach (Database::all(
-    'SELECT id, titre, chant, url FROM chants WHERE feuille_id IS NULL AND url IS NOT NULL'
-) as $c) {
-    $parUrl[(string) $c['url']] ??= (int) $c['id'];
+foreach (Database::all('SELECT id, titre, chant FROM repertoire_chants') as $c) {
     $parCle[Chant::cleDedup((string) $c['titre'], (string) $c['chant'])] ??= (int) $c['id'];
+}
+
+$existants = array_flip(array_column(Database::all('SELECT id FROM repertoire_chants'), 'id'));
+$parUrl = [];
+foreach (Database::all(
+    'SELECT url, chant_id FROM import_journal WHERE url IS NOT NULL AND chant_id IS NOT NULL'
+) as $r) {
+    if (isset($existants[(int) $r['chant_id']])) {
+        $parUrl[(string) $r['url']] ??= (int) $r['chant_id'];
+    }
 }
 
 $corrects = $relies = $recrees = 0;
@@ -80,9 +88,7 @@ foreach (Database::all(
     $parSource[$source] ??= ['ok' => 0, 'relie' => 0, 'recree' => 0];
 
     $cle    = Chant::cleDedup((string) $j['titre'], (string) $j['chant']);
-    $actuel = $j['chant_id'] !== null
-        ? Database::one('SELECT titre, chant FROM chants WHERE id = ?', [(int) $j['chant_id']])
-        : null;
+    $actuel = $j['chant_id'] !== null ? RepertoireChant::find((int) $j['chant_id']) : null;
 
     if ($actuel !== null
         && Chant::cleDedup((string) $actuel['titre'], (string) $actuel['chant']) === $cle
@@ -108,20 +114,17 @@ foreach (Database::all(
         continue;
     }
 
-    // Le chant a disparu : on le recrée depuis les données du journal.
+    // La fiche a disparu : on la recrée depuis les données du journal.
     $chant    = Paroles::format((string) $j['chant']);
     $couplets = count_couplets($chant, false);
     $ligne = [
-        'feuille_id'  => null,
-        'nom'         => (string) ($j['nom'] ?: 'Chant'),
-        'type'        => (string) ($j['type'] ?: TypeLiturgique::DEFAUT),
-        'position'    => 0,
         'titre'       => $j['titre'],
         'code'        => $j['code'],
         'auteur'      => $j['auteur'],
+        'type'        => (string) ($j['type'] ?: TypeLiturgique::DEFAUT),
+        'nom'         => (string) ($j['nom'] ?: 'Chant'),
         'chant'       => $chant,
         'nb_couplets' => $couplets,
-        'url'         => $j['url'],
     ];
 
     $recrees++;
@@ -129,7 +132,7 @@ foreach (Database::all(
     $log(sprintf('  + %-22s %-40s (recréée)', $source, tronque((string) $j['titre'], 40)));
 
     if (!$dryRun) {
-        $id = Database::insert('chants', $ligne);
+        $id = RepertoireChant::create($ligne);
         Database::run(
             'UPDATE import_journal SET chant_id = ? WHERE source = ? AND ref = ?',
             [$id, $source, (string) $j['ref']]

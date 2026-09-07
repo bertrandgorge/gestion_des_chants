@@ -100,6 +100,33 @@
         }
     }
 
+    /* ---------- Texte de chant → aperçu (page section ET fiche répertoire) ---------- */
+    var chantInputGlobal = document.querySelector('[data-chant-input]');
+    var previewGlobal = document.querySelector('[data-chant-preview]');
+    if (chantInputGlobal && previewGlobal) {
+        chantInputGlobal.addEventListener('input', function () {
+            previewGlobal.innerHTML = renderChant(chantInputGlobal.value);
+        });
+    }
+
+    /* ---------- Page « répertoire » : sélection à fusionner ---------- */
+    // Le bouton « Fusionner » vit dans la zone outils, hors du <form> qu'il soumet
+    // (rattaché via l'attribut form=), donc recherché dans tout le document.
+    var repertoireForm = document.querySelector('[data-repertoire-form]');
+    var fusionnerBtn = document.querySelector('[data-fusionner-btn]');
+    if (repertoireForm && fusionnerBtn) {
+        var checks = repertoireForm.querySelectorAll('[data-repertoire-check]');
+        var updateFusionnerBtn = function () {
+            var n = 0;
+            checks.forEach(function (c) { if (c.checked) n++; });
+            var actif = n === 2;
+            fusionnerBtn.disabled = !actif;
+            fusionnerBtn.classList.toggle('btn-primary', actif);
+            fusionnerBtn.classList.toggle('btn-outline-secondary', !actif);
+        };
+        checks.forEach(function (c) { c.addEventListener('change', updateFusionnerBtn); });
+    }
+
     /* ---------- Page « section » : aperçu + autocomplétion ---------- */
     var form = document.querySelector('[data-section-form]');
     if (form) {
@@ -117,12 +144,8 @@
             });
         }
 
-        var chantInput = form.querySelector('[data-chant-input]');
-        var preview = form.querySelector('[data-chant-preview]');
-        if (chantInput && preview) {
-            var refresh = function () { preview.innerHTML = renderChant(chantInput.value); };
-            chantInput.addEventListener('input', refresh);
-        }
+        var chantInput = chantInputGlobal;
+        var preview = previewGlobal;
 
         // Aperçu paroissien fidèle (lectures / évangile) : rendu côté serveur
         // via la vue publique, rafraîchi à la frappe.
@@ -159,6 +182,13 @@
             if (display) display.classList.toggle('d-none', !url);
         }
 
+        function setRepertoireId(id) {
+            var field = form.querySelector('[data-repertoire-field]');
+            if (field) field.value = id || '';
+            var display = form.querySelector('[data-repertoire-display]');
+            if (display) display.classList.toggle('d-none', !id);
+        }
+
         var clearBtn = form.querySelector('[data-clear-chant]');
         if (clearBtn) {
             clearBtn.addEventListener('click', function () {
@@ -167,6 +197,7 @@
                     if (f) f.value = '';
                 });
                 setChantUrl('');
+                setRepertoireId(null);
                 if (preview) preview.innerHTML = '';
                 var t = form.querySelector('[name="titre"]');
                 if (t) t.focus();
@@ -182,6 +213,7 @@
         if ((comportement === 'chant' || comportement === 'ordinaire') && panel) {
             var titreField = form.querySelector('#titre');
             var codeField = form.querySelector('#code');
+            var searchTextField = form.querySelector('[data-search-text]');
             var timer = null;
 
             function isEmptyChant() {
@@ -193,7 +225,8 @@
             function hidePanel() { panel.hidden = true; panel.innerHTML = ''; }
 
             function search(q) {
-                fetch('/app/chants/recherche?q=' + encodeURIComponent(q) + '&type=' + encodeURIComponent(type) + '&feuille=' + encodeURIComponent(feuille || ''), {
+                var texte = searchTextField && searchTextField.checked ? '1' : '0';
+                fetch('/app/chants/recherche?q=' + encodeURIComponent(q) + '&type=' + encodeURIComponent(type) + '&feuille=' + encodeURIComponent(feuille || '') + '&texte=' + texte, {
                     headers: { 'X-Requested-With': 'fetch' }
                 })
                     .then(function (r) { return r.json(); })
@@ -209,6 +242,9 @@
                             }).join('');
                             if (item.url) {
                                 badges += '<span class="badge text-bg-light border ms-1"><i class="bi bi-link-45deg"></i> partition</span>';
+                            }
+                            if (item.ordinaire) {
+                                badges += '<span class="badge text-bg-light border ms-1"><i class="bi bi-collection"></i> ' + escapeHtml(item.ordinaire) + '</span>';
                             }
                             a.innerHTML = '<span class="fw-semibold">' + escapeHtml(item.titre || '(sans titre)') + '</span>'
                                 + (item.code ? ' <span class="text-body-secondary">' + escapeHtml(item.code) + '</span>' : '')
@@ -227,13 +263,14 @@
                 setVal('auteur', item.auteur);
                 setVal('chant', item.chant);
                 setChantUrl(item.url);
+                setRepertoireId(item.repertoire_id);
                 if (chantInput && preview) preview.innerHTML = renderChant(chantInput.value);
                 hidePanel();
 
-                if (estOrdinaire && item.feuille_id) {
+                if (estOrdinaire && item.ordinaire && item.repertoire_id) {
                     var sectionId = window.location.pathname.split('/').pop();
                     postForm('/app/sections/' + sectionId + '/reprendre-ordinaire', {
-                        source_feuille_id: item.feuille_id
+                        repertoire_id: item.repertoire_id
                     }).then(function (res) {
                         if (res.ok && res.reprises && res.reprises.length) {
                             toast('Ordinaire repris : ' + res.reprises.join(', '));
@@ -261,6 +298,12 @@
             [titreField, codeField].forEach(function (f) {
                 if (f) f.addEventListener('input', onType);
             });
+            if (searchTextField) {
+                searchTextField.addEventListener('change', function () {
+                    var q = ((titreField && titreField.value) || (codeField && codeField.value) || '').trim();
+                    if (q.length >= 2) search(q);
+                });
+            }
             document.addEventListener('click', function (e) {
                 if (!panel.contains(e.target) && e.target !== titreField && e.target !== codeField) hidePanel();
             });

@@ -10,6 +10,8 @@ use App\Models\Chant;
 use App\Models\Clocher;
 use App\Models\FeuilleChant;
 use App\Models\Paroisse;
+use App\Models\RepertoireChant;
+use App\Models\Statistique;
 use App\SectionTypes;
 
 final class ChantController
@@ -121,11 +123,31 @@ final class ChantController
         Auth::requireLogin();
         $section = $this->ownSection((int) $params['id']);
         $feuille = FeuilleChant::find((int) $section['feuille_id']);
+        $comportement = SectionTypes::comportement($section['type']);
+
+        $stats = null;
+        $urls = [];
+        if (in_array($comportement, ['chant', 'ordinaire'], true) && !empty($section['repertoire_id'])) {
+            $repertoireId = (int) $section['repertoire_id'];
+            $paroisseId = Auth::paroisseId();
+            $chantRepertoire = RepertoireChant::find($repertoireId);
+            $type = (string) ($chantRepertoire['type'] ?? $section['type']);
+            $stats = [
+                'dernieresMesses'    => Statistique::dernieresMesses($repertoireId, $paroisseId),
+                'utilisations12Mois' => Statistique::nombreUtilisations($repertoireId, $paroisseId),
+                'topSection'         => Statistique::topSection($type, $paroisseId),
+                'repertoireId'       => $repertoireId,
+                'labelSection'       => SectionTypes::libelle($type),
+            ];
+            $urls = RepertoireChant::urls($repertoireId);
+        }
 
         render('chantre', 'chant/section_form', [
             'section'      => $section,
             'feuille'      => $feuille,
-            'comportement' => SectionTypes::comportement($section['type']),
+            'comportement' => $comportement,
+            'stats'        => $stats,
+            'urls'         => $urls,
             'titre'        => $section['nom'],
         ]);
     }
@@ -151,6 +173,10 @@ final class ChantController
         if (array_key_exists('chant', $data)) {
             $data['nb_couplets'] = count_couplets($data['chant'], false);
         }
+        if (in_array($comportement, ['chant', 'ordinaire'], true)) {
+            $repertoireId = trim((string) ($_POST['repertoire_id'] ?? ''));
+            $data['repertoire_id'] = $repertoireId !== '' ? (int) $repertoireId : null;
+        }
 
         Chant::update((int) $section['id'], $data);
         flash('success', 'Section enregistrée.');
@@ -164,18 +190,20 @@ final class ChantController
         $q = trim((string) ($_GET['q'] ?? ''));
         $type = isset($_GET['type']) ? (string) $_GET['type'] : null;
         $feuilleId = isset($_GET['feuille']) ? (int) $_GET['feuille'] : null;
+        $texte = !empty($_GET['texte']);
         if (mb_strlen($q) < 2) {
             json_response([]);
         }
-        json_response(Chant::historique(Auth::paroisseId(), $q, $type, $feuilleId));
+        json_response(Chant::historique(Auth::paroisseId(), $q, $type, $feuilleId, $texte));
     }
 
     /**
      * AJAX JSON : reprise groupée de l'ordinaire.
      *
-     * L'utilisateur édite une section d'ordinaire et choisit un chant issu d'une
-     * feuille passée : on recopie les autres sections d'ordinaire (non vides) de
-     * cette feuille dans les sections d'ordinaire encore vides de la feuille courante.
+     * L'utilisateur édite une section d'ordinaire et choisit, dans le répertoire,
+     * un chant qui appartient à un ordinaire de messe (App\Models\RepertoireChant::pourOrdinaire)
+     * : on recopie les autres chants de ce même ordinaire dans les sections
+     * d'ordinaire encore vides de la feuille courante.
      */
     public function reprendreOrdinaire(array $params): void
     {
@@ -185,17 +213,14 @@ final class ChantController
             json_response(['error' => 'section hors ordinaire'], 422);
         }
 
-        $source = FeuilleChant::findForParoisse((int) input('source_feuille_id', '0'), Auth::paroisseId());
-        if ($source === null) {
-            json_response(['error' => 'feuille source introuvable'], 404);
+        $repertoireId = (int) input('repertoire_id', '0');
+        $source = $repertoireId > 0 ? RepertoireChant::find($repertoireId) : null;
+        $ordinaire = trim((string) ($source['ordinaire'] ?? ''));
+        if ($source === null || $ordinaire === '') {
+            json_response(['error' => "ce chant n'appartient pas à un ordinaire du répertoire"], 404);
         }
 
-        $sourceParType = [];
-        foreach (Chant::forFeuille((int) $source['id']) as $s) {
-            if (SectionTypes::estOrdinaire($s['type']) && trim((string) $s['chant']) !== '') {
-                $sourceParType[$s['type']] = $s;
-            }
-        }
+        $sourceParType = RepertoireChant::pourOrdinaire($ordinaire);
 
         $reprises = [];
         foreach (Chant::forFeuille((int) $section['feuille_id']) as $cible) {
@@ -210,15 +235,61 @@ final class ChantController
                 continue;
             }
             Chant::update((int) $cible['id'], [
-                'titre'  => $src['titre'],
-                'code'   => $src['code'],
-                'auteur' => $src['auteur'],
-                'chant'  => $src['chant'],
+                'titre'         => $src['titre'],
+                'code'          => $src['code'],
+                'auteur'        => $src['auteur'],
+                'chant'         => $src['chant'],
+                'repertoire_id' => (int) $src['id'],
             ]);
             $reprises[] = $cible['nom'];
         }
 
         json_response(['ok' => true, 'reprises' => $reprises]);
+    }
+
+    /**
+     * Ajoute une section (déjà enregistrée) au répertoire partagé : dédoublonne
+     * par titre (App\Models\RepertoireChant::trouverDoublon) plutôt que de
+     * créer systématiquement une nouvelle fiche.
+     */
+    public function ajouterAuRepertoire(array $params): void
+    {
+        Auth::requireLogin();
+        $section = $this->ownSection((int) $params['id']);
+        $comportement = SectionTypes::comportement($section['type']);
+
+        if (!in_array($comportement, ['chant', 'ordinaire'], true)
+            || trim((string) $section['titre']) === ''
+            || trim((string) $section['chant']) === ''
+        ) {
+            flash('error', "Cette section n'a pas de quoi être ajoutée au répertoire.");
+            redirect('/app/sections/' . $section['id']);
+        }
+
+        // Une section tapée à la main n'appartient à aucune des sources importées :
+        // pas d'exclusion « même source » ici.
+        $repertoireId = RepertoireChant::trouverDoublon(
+            (string) $section['titre'],
+            (string) $section['chant'],
+            $section['code'] !== '' ? (string) $section['code'] : null,
+            null,
+            null
+        );
+        if ($repertoireId === null) {
+            $repertoireId = RepertoireChant::create([
+                'titre'       => $section['titre'],
+                'code'        => $section['code'] !== '' ? $section['code'] : null,
+                'auteur'      => $section['auteur'] !== '' ? $section['auteur'] : null,
+                'type'        => $section['type'],
+                'nom'         => $section['nom'],
+                'chant'       => $section['chant'],
+                'nb_couplets' => $section['nb_couplets'] ?? count_couplets((string) $section['chant'], false),
+            ]);
+        }
+
+        Chant::update((int) $section['id'], ['repertoire_id' => $repertoireId]);
+        flash('success', 'Chant ajouté au répertoire.');
+        redirect('/app/sections/' . $section['id']);
     }
 
     /** AJAX : aperçu paroissien d'une section à partir des champs en cours d'édition. */

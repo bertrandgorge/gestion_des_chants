@@ -98,6 +98,16 @@ if (!function_exists('input')) {
     }
 }
 
+if (!function_exists('query_suffix')) {
+    /** Chaîne "?k=v&..." à partir de $params (valeurs vides/null/false ignorées), ou "" si aucun paramètre. */
+    function query_suffix(array $params): string
+    {
+        $params = array_filter($params, static fn ($v) => $v !== null && $v !== '' && $v !== false);
+
+        return $params === [] ? '' : '?' . http_build_query($params);
+    }
+}
+
 if (!function_exists('slugify')) {
     function slugify(string $text): string
     {
@@ -112,6 +122,19 @@ if (!function_exists('slugify')) {
         $text = (string) preg_replace('~-+~', '-', $text);
 
         return $text === '' ? 'x' : $text;
+    }
+}
+
+if (!function_exists('join_liste_fr')) {
+    /** Joint une liste pour affichage en français : "a, b et c". */
+    function join_liste_fr(array $items): string
+    {
+        if (count($items) < 2) {
+            return implode('', $items);
+        }
+        $dernier = array_pop($items);
+
+        return implode(', ', $items) . ' et ' . $dernier;
     }
 }
 
@@ -349,7 +372,64 @@ if (!function_exists('presentation_slides')) {
             }
         }
 
-        return $slides;
+        // Une diapo dont le texte dépasse 12 lignes est répartie sur plusieurs
+        // écrans de 10 lignes maximum (blocs répartis dans l'ordre, un bloc trop
+        // long étant lui-même coupé ligne à ligne), pour rester lisible projeté.
+        $diapos = [];
+        foreach ($slides as $slide) {
+            array_push($diapos, ...diviser_diapo($slide));
+        }
+
+        return $diapos;
+    }
+}
+
+if (!function_exists('diviser_diapo')) {
+    /**
+     * @param array{nom: string, blocs: array<int, array{type: string, texte: string}>, couplet: ?int, couplets: ?int} $slide
+     * @return array<int, array{nom: string, blocs: array<int, array{type: string, texte: string}>, couplet: ?int, couplets: ?int}>
+     */
+    function diviser_diapo(array $slide, int $seuil = 12, int $max = 10): array
+    {
+        $totalLignes = array_sum(array_map(
+            static fn ($b) => substr_count($b['texte'], "\n") + 1,
+            $slide['blocs']
+        ));
+        if ($totalLignes <= $seuil) {
+            return [$slide];
+        }
+
+        $ecrans = [];
+        $blocsEcran = [];
+        $lignesEcran = 0;
+        foreach ($slide['blocs'] as $bloc) {
+            $lignes = explode("\n", $bloc['texte']);
+            while ($lignes !== []) {
+                $place = $max - $lignesEcran;
+                if ($place <= 0) {
+                    $ecrans[] = $blocsEcran;
+                    $blocsEcran = [];
+                    $lignesEcran = 0;
+                    $place = $max;
+                }
+                $prises = array_splice($lignes, 0, $place);
+                $blocsEcran[] = ['type' => $bloc['type'], 'texte' => implode("\n", $prises)];
+                $lignesEcran += count($prises);
+            }
+        }
+        if ($blocsEcran !== []) {
+            $ecrans[] = $blocsEcran;
+        }
+
+        return array_map(
+            static fn ($blocs) => [
+                'nom' => $slide['nom'],
+                'blocs' => $blocs,
+                'couplet' => $slide['couplet'],
+                'couplets' => $slide['couplets'],
+            ],
+            $ecrans
+        );
     }
 }
 

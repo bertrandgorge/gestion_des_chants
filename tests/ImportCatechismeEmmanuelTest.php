@@ -79,13 +79,13 @@ final class ImportCatechismeEmmanuelTest extends TestCase
         $this->assertSame('Esprit Saint', $data['theme']);
         $this->assertSame('entree', $data['type']);
         $this->assertSame('', $data['auteur']);
+        // Paroles brutes (Paroles::multiligne) : la mise en forme (R/, 1., …) se
+        // fait après coup, pas à la récupération — voir bin/import_repertoire.php.
         $this->assertSame(
             "1. Auprès de Marie ensemble au Cénacle,\n"
             . "Nous levons les yeux vers le ciel.\n"
-            . "\n"
-            . "R/ Viens ! Souffle de Dieu,\n"
+            . "R. Viens ! Souffle de Dieu,\n"
             . "Ô viens ! Esprit du Très-Haut,\n"
-            . "\n"
             . "2. Esprit Créateur éclaire nos âmes,\n"
             . "Viens emplir nos cœurs de ta grâce.",
             $data['chant']

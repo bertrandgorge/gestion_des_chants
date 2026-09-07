@@ -73,4 +73,25 @@ final class ChantDedupTest extends TestCase
         $this->assertSame(0, Chant::scoreQualite($propre));
         $this->assertSame(4, Chant::scoreQualite($sale));
     }
+
+    public function testPremieresLignesIgnoreAccentsPonctuationCasseEtLignesVides(): void
+    {
+        $a = Chant::premieresLignes("\n\nR/ Je vous salue, Marie !\npleine de grâce...\n\n1. Suite");
+        $b = Chant::premieresLignes("R/ je vous salue marie\nPLEINE DE GRACE\n\nAutre suite");
+
+        $this->assertSame($a, $b);
+    }
+
+    public function testPremieresLignesDistingueDesParolesDifferentes(): void
+    {
+        $a = Chant::premieresLignes("R/ Je vous salue, Marie\npleine de grâce");
+        $b = Chant::premieresLignes("1. Un deuil de plus à Béthanie\nl'homme n'est qu'herbe vaine");
+
+        $this->assertNotSame($a, $b);
+    }
+
+    public function testPremieresLignesVideSiAucuneLigneExploitable(): void
+    {
+        $this->assertSame('', Chant::premieresLignes("\n\n   \n"));
+    }
 }

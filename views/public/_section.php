@@ -1,14 +1,43 @@
 <?php
 
 /** @var array $s */
+use App\Models\RepertoireChant;
 use App\SectionTypes;
 
 $comportement = SectionTypes::comportement($s['type']);
+
+$partitionsUrls = [];
+if (!empty($s['repertoire_id'])) {
+    foreach (RepertoireChant::urls((int) $s['repertoire_id']) as $source) {
+        if (!empty($source['url'])) {
+            $partitionsUrls[$source['url']] = true;
+        }
+    }
+}
+if (!empty($s['url'])) {
+    $partitionsUrls[$s['url']] = true;
+}
+$partitionsUrls = array_keys($partitionsUrls);
 ?>
 <section class="feuille-section">
-    <h2 class="feuille-section-titre"><?= e($s['nom']) ?></h2>
+    <h2 class="feuille-section-titre">
+        <?= e($s['nom']) ?>
+    </h2>
 
     <?php if (in_array($comportement, ['chant', 'ordinaire'], true)): ?>
+        <?php if ($partitionsUrls !== []): ?>
+            <p class="feuille-chant-partitions">
+                Voir les partitions :
+                <?php
+                $partitionsLiens = array_map(static function (string $url): string {
+                    $hote = preg_replace('/^www\./', '', parse_url($url, PHP_URL_HOST) ?? $url);
+
+                    return '<a href="' . e($url) . '" target="_blank" rel="noopener noreferrer">' . e($hote) . '</a>';
+                }, $partitionsUrls);
+                echo join_liste_fr($partitionsLiens);
+                ?>
+            </p>
+        <?php endif; ?>
         <div class="feuille-chant-texte"><?= render_chant($s['chant']) ?></div>
 
     <?php elseif ($comportement === 'psaume'): ?>

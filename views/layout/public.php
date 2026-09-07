@@ -4,6 +4,11 @@
 $theme = $theme ?? 'auto';
 $scale = $scale ?? 1.3;
 $bsTheme = $theme === 'sombre' ? 'dark' : ($theme === 'clair' ? 'light' : null);
+$chantLiens = $chantLiens ?? false;
+$hasChantLiens = false;
+foreach (($sections ?? []) as $s) {
+    if (!empty($s['url'])) { $hasChantLiens = true; break; }
+}
 ?>
 <!doctype html>
 <html lang="fr"<?= $bsTheme ? ' data-bs-theme="' . $bsTheme . '"' : '' ?> data-theme-pref="<?= e($theme) ?>">
@@ -24,14 +29,24 @@ $bsTheme = $theme === 'sombre' ? 'dark' : ($theme === 'clair' ? 'light' : null);
         })();
     </script>
 </head>
-<body class="public-body">
+<body class="public-body<?= $chantLiens ? ' show-chant-liens' : '' ?>">
 <div class="public-toolbar">
-    <button type="button" class="btn btn-sm btn-outline-secondary" data-font="-" aria-label="Réduire le texte">A&minus;</button>
-    <button type="button" class="btn btn-sm btn-outline-secondary" data-font="+" aria-label="Agrandir le texte">A+</button>
-    <button type="button" class="btn btn-sm btn-outline-secondary" data-theme-toggle aria-label="Changer de thème"><i class="bi bi-circle-half"></i></button>
-    <?php if (!empty($presentation) && !empty($sections)): ?>
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-presentation aria-label="Mode présentation" title="Mode présentation"><i class="bi bi-projector"></i></button>
-    <?php endif; ?>
+    <div class="public-toolbar-groupe">
+        <?php if (!empty($printUrl)): ?>
+            <a class="btn btn-sm btn-outline-secondary" href="<?= e($printUrl) ?>" target="_blank" rel="noopener noreferrer" aria-label="Imprimer" title="Imprimer"><i class="bi bi-printer"></i></a>
+        <?php endif; ?>
+        <?php if (!empty($presentation) && !empty($sections)): ?>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-presentation aria-label="Mode présentation" title="Mode présentation"><i class="bi bi-projector"></i></button>
+        <?php endif; ?>
+    </div>
+    <div class="public-toolbar-groupe">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-font="-" aria-label="Réduire le texte">A&minus;</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-font="+" aria-label="Agrandir le texte">A+</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-theme-toggle aria-label="Changer de thème"><i class="bi bi-circle-half"></i></button>
+        <?php if ($hasChantLiens): ?>
+            <button type="button" class="btn btn-sm btn-outline-secondary<?= $chantLiens ? ' active' : '' ?>" data-chant-liens aria-pressed="<?= $chantLiens ? 'true' : 'false' ?>" aria-label="Afficher les liens des chants" title="Afficher les liens des chants (pour réviser les voix)"><i class="bi bi-music-note-beamed"></i></button>
+        <?php endif; ?>
+    </div>
 </div>
 <main class="public-main">
     <?= $content ?>
