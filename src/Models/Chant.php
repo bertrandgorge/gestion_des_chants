@@ -253,6 +253,8 @@ final class Chant
             $couplets = isset($row['nb_couplets']) && $row['nb_couplets'] !== null
                 ? (int) $row['nb_couplets']
                 : count_couplets($row['chant'], false);
+            $rid = isset($row['repertoire_id']) ? (int) $row['repertoire_id'] : null;
+
             if (!isset($groups[$key]) || $couplets > $groups[$key]['_couplets']) {
                 $groups[$key] = [
                     'titre'         => $row['titre'],
@@ -260,14 +262,20 @@ final class Chant
                     'auteur'        => $row['auteur'],
                     'chant'         => $row['chant'],
                     'feuille_id'    => isset($row['feuille_id']) ? (int) $row['feuille_id'] : null,
-                    'repertoire_id' => isset($row['repertoire_id']) ? (int) $row['repertoire_id'] : null,
-                    'ordinaire'     => $row['ordinaire'] ?? null,
+                    'repertoire_id' => $groups[$key]['repertoire_id'] ?? $rid,
+                    'ordinaire'     => $groups[$key]['ordinaire'] ?? ($row['ordinaire'] ?? null),
                     'url'           => $groups[$key]['url'] ?? ($row['url'] ?? null),
                     '_couplets'     => $couplets,
                 ];
-            } elseif (($row['url'] ?? null) !== null && ($groups[$key]['url'] ?? null) === null) {
-                $groups[$key]['url'] = $row['url'];
             }
+
+            // Le lien vers le répertoire, l'ordinaire et l'URL de partition ne
+            // dépendent pas du nombre de couplets : dès qu'une des lignes groupées
+            // les porte, on les conserve (l'historique paroissial ne renvoie que
+            // des chants non liés — voir la requête ci-dessus).
+            $groups[$key]['repertoire_id'] ??= $rid;
+            $groups[$key]['ordinaire'] ??= $row['ordinaire'] ?? null;
+            $groups[$key]['url'] ??= $row['url'] ?? null;
         }
 
         $result = [];
