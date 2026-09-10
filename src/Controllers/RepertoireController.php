@@ -78,12 +78,14 @@ final class RepertoireController
         }
 
         $type = (string) input('type', 'entree');
+        // « nom » (classement d'origine, badge dans le répertoire) n'est plus
+        // éditable ici : alimenté par l'import et par « Ajouter au répertoire »,
+        // on ne le touche pas à l'enregistrement d'une fiche.
         $data = [
             'titre'     => $titre,
             'code'      => $this->videEnNull((string) input('code', '')),
             'auteur'    => $this->videEnNull((string) input('auteur', '')),
             'type'      => array_key_exists($type, $this->typesDisponibles()) ? $type : 'entree',
-            'nom'       => $this->videEnNull((string) input('nom', '')),
             'ordinaire' => $this->videEnNull((string) input('ordinaire', '')),
             'chant'     => (string) ($_POST['chant'] ?? ''),
             'mots_cles' => $this->videEnNull((string) input('mots_cles', '')),

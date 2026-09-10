@@ -40,10 +40,6 @@ $retour = '/app/repertoire' . query_suffix(['q' => $retourQ, 'texte' => $retourT
         </div>
     </div>
     <div>
-        <label class="form-label" for="nom">Libellé (repris comme nom de section)</label>
-        <input type="text" class="form-control" id="nom" name="nom" value="<?= e($chant['nom']) ?>">
-    </div>
-    <div>
         <label class="form-label" for="ordinaire">Ordinaire de messe</label>
         <input type="text" class="form-control" id="ordinaire" name="ordinaire" value="<?= e($chant['ordinaire'] ?? '') ?>" placeholder="ex. Messe de Saint Jean">
         <div class="form-text">
