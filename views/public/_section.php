@@ -1,23 +1,11 @@
 <?php
 
 /** @var array $s */
-use App\Models\RepertoireChant;
+use App\Models\Chant;
 use App\SectionTypes;
 
 $comportement = SectionTypes::comportement($s['type']);
-
-$partitionsUrls = [];
-if (!empty($s['repertoire_id'])) {
-    foreach (RepertoireChant::urls((int) $s['repertoire_id']) as $source) {
-        if (!empty($source['url'])) {
-            $partitionsUrls[$source['url']] = true;
-        }
-    }
-}
-if (!empty($s['url'])) {
-    $partitionsUrls[$s['url']] = true;
-}
-$partitionsUrls = array_keys($partitionsUrls);
+$partitionsUrls = Chant::partitions($s);
 ?>
 <section class="feuille-section">
     <h2 class="feuille-section-titre">

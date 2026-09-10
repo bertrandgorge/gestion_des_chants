@@ -53,8 +53,8 @@ $semaineAnnee = trim(($feuille['annee'] ? 'Année ' . $feuille['annee'] : '') . 
         $resume = '';
         if (in_array($comportement, ['chant', 'ordinaire', 'psaume'], true)) {
             $resume = trim((string) $s['titre']);
-            if ($s['code']) {
-                $resume .= ' (' . $s['code'] . ')';
+            if (!empty($s['repertoire_code'])) {
+                $resume .= ' (' . $s['repertoire_code'] . ')';
             }
         } elseif (in_array($comportement, ['lecture', 'evangile'], true)) {
             $resume = trim((string) $s['reference']);

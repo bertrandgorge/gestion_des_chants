@@ -18,10 +18,7 @@ if ($lectures === [] && empty($externe)) {
 $payload = static function (array $c): string {
     return e((string) json_encode([
         'titre'         => $c['titre'] ?? '',
-        'code'          => $c['code'] ?? '',
-        'auteur'        => $c['auteur'] ?? '',
         'chant'         => $c['chant'] ?? '',
-        'url'           => $c['url'] ?? '',
         'repertoire_id' => isset($c['repertoire_id']) && $c['repertoire_id'] !== null ? (int) $c['repertoire_id'] : null,
         'ordinaire'     => $c['ordinaire'] ?? null,
     ], JSON_UNESCAPED_UNICODE));

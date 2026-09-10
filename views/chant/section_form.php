@@ -45,8 +45,9 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
             <div class="autocomplete-panel list-group shadow-sm" data-suggestions hidden></div>
         </div>
         <?php
-        // Code / auteur ne sont plus éditables (issue #14) : champs cachés,
-        // repris de la fiche du répertoire quand la section y est liée.
+        // Code (cote Secli…), auteur et URL de partition ne sont plus portés par
+        // la section (issue #14) : ils viennent de la fiche du répertoire liée et
+        // s'affichent dans l'encadré en lecture seule ci-dessous.
         $fr = $ficheRepertoire ?? null;
         $frHote = static fn (string $url): string => (string) preg_replace(
             '/^www\./',
@@ -59,13 +60,7 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
                 $frPartitions[$u['url']] = $frHote((string) $u['url']);
             }
         }
-        if (!empty($section['url']) && !isset($frPartitions[$section['url']])) {
-            $frPartitions[$section['url']] = $frHote((string) $section['url']);
-        }
         ?>
-        <input type="hidden" name="url" value="<?= e($section['url'] ?? '') ?>" data-url-field>
-        <input type="hidden" name="code" value="<?= e($section['code'] ?? '') ?>" data-code-field>
-        <input type="hidden" name="auteur" value="<?= e($section['auteur'] ?? '') ?>" data-auteur-field>
         <input type="hidden" name="repertoire_id" value="<?= e((string) ($section['repertoire_id'] ?? '')) ?>" data-repertoire-field>
 
         <div class="border rounded p-3 small bg-body-tertiary" data-fiche-repertoire<?= $fr ? '' : ' hidden' ?>>
@@ -78,7 +73,8 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
                 <span data-fr-auteur<?= !empty($fr['auteur']) ? '' : ' hidden' ?>><?= e((string) ($fr['auteur'] ?? '')) ?></span>
             </div>
             <div class="mt-1" data-fr-partitions<?= $frPartitions !== [] ? '' : ' hidden' ?>>
-                <i class="bi bi-link-45deg"></i> Partition<?= count($frPartitions) > 1 ? 's' : '' ?> :
+                <i class="bi bi-link-45deg"></i>
+                <span data-fr-partitions-label>Partition<?= count($frPartitions) > 1 ? 's' : '' ?></span> :
                 <span data-fr-partitions-liste><?php $i = 0;
                 foreach ($frPartitions as $purl => $phote): echo $i++ ? ', ' : ''; ?><a href="<?= e($purl) ?>" target="_blank" rel="noopener noreferrer"><?= e($phote) ?></a><?php endforeach; ?></span>
             </div>

@@ -231,9 +231,9 @@ final class ChantController
 
     /**
      * Champs d'une section extraits du POST du formulaire d'édition, selon son
-     * comportement. Pour les chants (dont psaume, issue #3), « code »/« auteur »
-     * ne sont plus éditables (issue #14) mais restent transmis en champs cachés
-     * — repris de la fiche du répertoire — pour l'affichage / l'impression.
+     * comportement. Le code (cote Secli…), l'auteur et les URL de partition ne
+     * sont plus portés par la section (issue #14) : ils viennent de la fiche du
+     * répertoire liée (repertoire_id).
      *
      * @return array<string,mixed>
      */
@@ -242,10 +242,10 @@ final class ChantController
         $comportement = SectionTypes::comportement($section['type']);
 
         $champsParComportement = [
-            'chant'     => ['titre', 'auteur', 'code', 'chant', 'url'],
-            'ordinaire' => ['titre', 'auteur', 'code', 'chant', 'url'],
+            'chant'     => ['titre', 'chant'],
+            'ordinaire' => ['titre', 'chant'],
             'lecture'   => ['titre', 'reference', 'introduction', 'contenu'],
-            'psaume'    => ['titre', 'auteur', 'code', 'chant', 'url', 'reference'],
+            'psaume'    => ['titre', 'chant', 'reference'],
             'evangile'  => ['acclamation', 'introduction', 'reference', 'contenu'],
             'priere'    => ['contenu'],
         ];
@@ -376,8 +376,6 @@ final class ChantController
             }
             Chant::update((int) $cible['id'], [
                 'titre'         => $src['titre'],
-                'code'          => $src['code'],
-                'auteur'        => $src['auteur'],
                 'chant'         => $src['chant'],
                 'repertoire_id' => (int) $src['id'],
             ]);
@@ -414,19 +412,20 @@ final class ChantController
         }
 
         // Une section tapée à la main n'appartient à aucune des sources importées :
-        // pas d'exclusion « même source » ici.
+        // pas d'exclusion « même source » ici. Code / auteur ne sont plus saisis
+        // sur la section — la fiche est créée avec le seul titre + paroles.
         $repertoireId = RepertoireChant::trouverDoublon(
             (string) $section['titre'],
             (string) $section['chant'],
-            $section['code'] !== '' ? (string) $section['code'] : null,
+            null,
             null,
             null
         );
         if ($repertoireId === null) {
             $repertoireId = RepertoireChant::create([
                 'titre'       => $section['titre'],
-                'code'        => $section['code'] !== '' ? $section['code'] : null,
-                'auteur'      => $section['auteur'] !== '' ? $section['auteur'] : null,
+                'code'        => null,
+                'auteur'      => null,
                 'type'        => $section['type'],
                 'nom'         => $section['nom'],
                 'chant'       => $section['chant'],
@@ -445,7 +444,7 @@ final class ChantController
         Auth::requireLogin();
         $section = $this->ownSection((int) $params['id']);
 
-        foreach (['titre', 'auteur', 'code', 'chant', 'reference', 'introduction', 'contenu', 'acclamation'] as $champ) {
+        foreach (['titre', 'chant', 'reference', 'introduction', 'contenu', 'acclamation'] as $champ) {
             if (array_key_exists($champ, $_POST)) {
                 $section[$champ] = (string) $_POST[$champ];
             }

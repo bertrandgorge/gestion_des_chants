@@ -169,11 +169,6 @@
             });
         }
 
-        function setChantUrl(url) {
-            var field = form.querySelector('[data-url-field]');
-            if (field) field.value = url || '';
-        }
-
         function setRepertoireId(id) {
             var field = form.querySelector('[data-repertoire-field]');
             if (field) field.value = id || '';
@@ -194,40 +189,57 @@
             if (maj) maj.hidden = !rid;
         }
 
-        // Encadré « chant du répertoire » (titre canonique, code, auteur,
-        // partitions) — rendu / masqué selon que la section est liée.
-        function majFicheRepertoire(item) {
+        // Encadré « chant du répertoire » : titre canonique, code, auteur et
+        // TOUTES les URL de partition de la fiche. Peint à partir d'une fiche
+        // complète (endpoint /repertoire/{id}, qui porte urls[]).
+        function peindreFicheRepertoire(fiche) {
             var box = form.querySelector('[data-fiche-repertoire]');
             if (!box) return;
-            var rid = item && item.repertoire_id;
-            if (!rid) { box.hidden = true; return; }
+            if (!fiche || !fiche.repertoire_id) { box.hidden = true; return; }
 
             var set = function (sel, txt) {
                 var el = box.querySelector(sel);
                 if (el) { el.textContent = txt || ''; el.hidden = !txt; }
             };
-            set('[data-fr-titre]', item.titre_repertoire || item.titre);
-            set('[data-fr-code]', item.code);
-            set('[data-fr-auteur]', item.auteur);
+            set('[data-fr-titre]', fiche.titre);
+            set('[data-fr-code]', fiche.code);
+            set('[data-fr-auteur]', fiche.auteur);
             var sep = box.querySelector('[data-fr-sep]');
-            if (sep) sep.hidden = !(item.code && item.auteur);
+            if (sep) sep.hidden = !(fiche.code && fiche.auteur);
 
-            var urls = item.urls && item.urls.length ? item.urls : (item.url ? [item.url] : []);
+            var urls = fiche.urls && fiche.urls.length ? fiche.urls : (fiche.url ? [fiche.url] : []);
             var wrap = box.querySelector('[data-fr-partitions]');
             var liste = box.querySelector('[data-fr-partitions-liste]');
             if (wrap && liste) {
                 liste.innerHTML = urls.map(function (u) {
-                    var host = '';
-                    try { host = new URL(u).host.replace(/^www\./, ''); } catch (e) { host = u; }
+                    var host = u;
+                    try { host = new URL(u).host.replace(/^www\./, ''); } catch (e) { /* garde l'URL brute */ }
                     var a = document.createElement('a');
                     a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = host;
                     return a.outerHTML;
                 }).join(', ');
                 wrap.hidden = urls.length === 0;
+                var label = wrap.querySelector('[data-fr-partitions-label]');
+                if (label) label.textContent = 'Partition' + (urls.length > 1 ? 's' : '');
             }
             var ouvrir = box.querySelector('[data-fr-ouvrir]');
-            if (ouvrir) ouvrir.href = '/app/repertoire/' + rid;
+            if (ouvrir) ouvrir.href = '/app/repertoire/' + fiche.repertoire_id;
             box.hidden = false;
+        }
+
+        // Met l'encadré à jour après un choix. Si l'objet ne porte pas déjà la
+        // liste des URL (cas d'une suggestion / d'un résultat de recherche), on
+        // recharge la fiche complète depuis le répertoire.
+        function majFicheRepertoire(item) {
+            if (!item || !item.repertoire_id) { peindreFicheRepertoire(null); return; }
+            if (item.urls) { peindreFicheRepertoire(item); return; }
+            var sectionId = window.location.pathname.split('/').pop();
+            fetch('/app/sections/' + sectionId + '/repertoire/' + item.repertoire_id, {
+                headers: { 'X-Requested-With': 'fetch' }
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (res) { if (res && res.ok) peindreFicheRepertoire(res); })
+                .catch(function () { /* on garde l'encadré précédent */ });
         }
 
         function setVal(name, value) {
@@ -246,10 +258,7 @@
         function choisirChant(item) {
             if (!item) return;
             setVal('titre', item.titre);
-            setVal('code', item.code);      // champ caché (issue #14)
-            setVal('auteur', item.auteur);  // champ caché (issue #14)
             setVal('chant', item.chant);
-            setChantUrl(item.url);
             setRepertoireId(item.repertoire_id);
             majFicheRepertoire(item);
             if (chantInputGlobal && previewGlobal) {
@@ -277,11 +286,10 @@
         var clearBtn = form.querySelector('[data-clear-chant]');
         if (clearBtn) {
             clearBtn.addEventListener('click', function () {
-                ['titre', 'code', 'auteur', 'chant'].forEach(function (name) {
+                ['titre', 'chant'].forEach(function (name) {
                     var f = form.querySelector('[name="' + name + '"]');
                     if (f) f.value = '';
                 });
-                setChantUrl('');
                 setRepertoireId(null);
                 majFicheRepertoire(null);
                 if (preview) preview.innerHTML = '';

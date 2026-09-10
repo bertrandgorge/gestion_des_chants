@@ -115,23 +115,18 @@ CREATE TABLE IF NOT EXISTS chants (
     nom           VARCHAR(120) NOT NULL,               -- libellé affiché de la section
     type          VARCHAR(60) NOT NULL,                -- slug de comportement (immuable) : entree, kyrie, psaume...
     position      INT NOT NULL DEFAULT 0,
-    titre         VARCHAR(255) DEFAULT NULL,
-    code          VARCHAR(60) DEFAULT NULL,
-    auteur        VARCHAR(190) DEFAULT NULL,
+    titre         VARCHAR(255) DEFAULT NULL,           -- titre de la section (libellé local ; code / auteur / partitions viennent de la fiche du répertoire liée)
     chant         LONGTEXT DEFAULT NULL,               -- texte du chant / psaume (refrains + couplets)
     nb_couplets   SMALLINT UNSIGNED DEFAULT NULL,      -- couplets hors refrain (choix de la version la plus complète)
     introduction  VARCHAR(255) DEFAULT NULL,           -- « Lecture du livre... » / phrase introductive
     contenu       LONGTEXT DEFAULT NULL,               -- contenu HTML des lectures / évangile
     acclamation   LONGTEXT DEFAULT NULL,               -- verset d'acclamation (évangile)
     reference     VARCHAR(120) DEFAULT NULL,           -- référence biblique (Ez 33, 7-9)
-    url           VARCHAR(255) DEFAULT NULL,           -- fiche source (partitions, enregistrements) — affichée côté chantre uniquement
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_chants_feuille_position (feuille_id, position),
     KEY idx_chants_repertoire (repertoire_id),
     KEY idx_chants_titre (titre),
-    KEY idx_chants_code (code),
-    KEY idx_chants_url (url),
     CONSTRAINT fk_chants_feuille FOREIGN KEY (feuille_id) REFERENCES feuilles_chant (id) ON DELETE CASCADE,
     CONSTRAINT fk_chants_repertoire FOREIGN KEY (repertoire_id) REFERENCES repertoire_chants (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
