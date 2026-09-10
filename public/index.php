@@ -63,6 +63,8 @@ $router->get('/app/sections/{id}', [ChantController::class, 'editSection']);
 $router->post('/app/sections/{id}', [ChantController::class, 'saveSection']);
 $router->get('/app/sections/{id}/suggestions', [ChantController::class, 'suggestionsExternes']);
 $router->post('/app/sections/{id}/importer-suggestion', [ChantController::class, 'importerSuggestion']);
+$router->get('/app/sections/{id}/repertoire/{repertoire_id}', [ChantController::class, 'ficheRepertoire']);
+$router->post('/app/sections/{id}/mettre-a-jour-repertoire', [ChantController::class, 'mettreAJourRepertoire']);
 $router->post('/app/sections/{id}/apercu', [ChantController::class, 'previewSection']);
 $router->post('/app/sections/{id}/reprendre-ordinaire', [ChantController::class, 'reprendreOrdinaire']);
 $router->post('/app/sections/{id}/ajouter-repertoire', [ChantController::class, 'ajouterAuRepertoire']);

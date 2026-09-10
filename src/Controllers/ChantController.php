@@ -133,11 +133,12 @@ final class ChantController
 
         $stats = null;
         $urls = [];
+        $ficheRepertoire = null;
         if ($editeurChant && !empty($section['repertoire_id'])) {
             $repertoireId = (int) $section['repertoire_id'];
             $paroisseId = Auth::paroisseId();
-            $chantRepertoire = RepertoireChant::find($repertoireId);
-            $type = (string) ($chantRepertoire['type'] ?? $section['type']);
+            $ficheRepertoire = RepertoireChant::find($repertoireId);
+            $type = (string) ($ficheRepertoire['type'] ?? $section['type']);
             $stats = [
                 'dernieresMesses'    => Statistique::dernieresMesses($repertoireId, $paroisseId),
                 'utilisations12Mois' => Statistique::nombreUtilisations($repertoireId, $paroisseId),
@@ -155,13 +156,14 @@ final class ChantController
             : [];
 
         render('chantre', 'chant/section_form', [
-            'section'      => $section,
-            'feuille'      => $feuille,
-            'comportement' => $comportement,
-            'stats'        => $stats,
-            'urls'         => $urls,
-            'lectures'     => $lectures,
-            'titre'        => $section['nom'],
+            'section'         => $section,
+            'feuille'         => $feuille,
+            'comportement'    => $comportement,
+            'stats'           => $stats,
+            'urls'            => $urls,
+            'ficheRepertoire' => $ficheRepertoire,
+            'lectures'        => $lectures,
+            'titre'           => $section['nom'],
         ]);
     }
 
@@ -221,18 +223,34 @@ final class ChantController
     {
         Auth::requireLogin();
         $section = $this->ownSection((int) $params['id']);
+
+        Chant::update((int) $section['id'], $this->donneesDepuisPost($section));
+        flash('success', 'Section enregistrée.');
+        redirect('/app/feuilles/' . $section['feuille_id'] . '#section-' . $section['id']);
+    }
+
+    /**
+     * Champs d'une section extraits du POST du formulaire d'édition, selon son
+     * comportement. Pour les chants (dont psaume, issue #3), « code »/« auteur »
+     * ne sont plus éditables (issue #14) mais restent transmis en champs cachés
+     * — repris de la fiche du répertoire — pour l'affichage / l'impression.
+     *
+     * @return array<string,mixed>
+     */
+    private function donneesDepuisPost(array $section): array
+    {
         $comportement = SectionTypes::comportement($section['type']);
 
-        $data = [];
         $champsParComportement = [
             'chant'     => ['titre', 'auteur', 'code', 'chant', 'url'],
             'ordinaire' => ['titre', 'auteur', 'code', 'chant', 'url'],
             'lecture'   => ['titre', 'reference', 'introduction', 'contenu'],
-            // Le psaume s'édite comme un chant tout en gardant sa référence (issue #3).
             'psaume'    => ['titre', 'auteur', 'code', 'chant', 'url', 'reference'],
             'evangile'  => ['acclamation', 'introduction', 'reference', 'contenu'],
             'priere'    => ['contenu'],
         ];
+
+        $data = [];
         foreach ($champsParComportement[$comportement] ?? ['titre', 'chant'] as $champ) {
             $data[$champ] = (string) ($_POST[$champ] ?? '');
         }
@@ -244,9 +262,65 @@ final class ChantController
             $data['repertoire_id'] = $repertoireId !== '' ? (int) $repertoireId : null;
         }
 
+        return $data;
+    }
+
+    /** AJAX JSON : fiche du répertoire liée à une section, pour la recharger dans le formulaire. */
+    public function ficheRepertoire(array $params): void
+    {
+        Auth::requireLogin();
+        $this->ownSection((int) $params['id']);
+
+        $fiche = RepertoireChant::find((int) $params['repertoire_id']);
+        if ($fiche === null) {
+            json_response(['ok' => false], 404);
+        }
+
+        $urls = array_values(array_filter(array_map(
+            static fn ($u) => (string) ($u['url'] ?? ''),
+            RepertoireChant::urls((int) $fiche['id'])
+        )));
+
+        json_response([
+            'ok'            => true,
+            'titre'         => $fiche['titre'],
+            'code'          => $fiche['code'] ?? '',
+            'auteur'        => $fiche['auteur'] ?? '',
+            'chant'         => $fiche['chant'] ?? '',
+            'repertoire_id' => (int) $fiche['id'],
+            'ordinaire'     => $fiche['ordinaire'] ?? null,
+            'url'           => $urls[0] ?? '',
+            'urls'          => $urls,
+        ]);
+    }
+
+    /**
+     * Pousse les paroles de la section (telles qu'éditées) dans la fiche du
+     * répertoire à laquelle elle est liée. La section est enregistrée au
+     * passage pour ne pas perdre les modifications. Confirmation côté client.
+     */
+    public function mettreAJourRepertoire(array $params): void
+    {
+        Auth::requireLogin();
+        $section = $this->ownSection((int) $params['id']);
+
+        $data = $this->donneesDepuisPost($section);
         Chant::update((int) $section['id'], $data);
-        flash('success', 'Section enregistrée.');
-        redirect('/app/feuilles/' . $section['feuille_id'] . '#section-' . $section['id']);
+
+        $repertoireId = (int) ($data['repertoire_id'] ?? $section['repertoire_id'] ?? 0);
+        $fiche = $repertoireId > 0 ? RepertoireChant::find($repertoireId) : null;
+        if ($fiche === null) {
+            flash('error', "Cette section n'est pas liée à une fiche du répertoire.");
+            redirect('/app/sections/' . $section['id']);
+        }
+
+        $chant = (string) ($data['chant'] ?? '');
+        RepertoireChant::update($repertoireId, [
+            'chant'       => $chant,
+            'nb_couplets' => count_couplets($chant, false),
+        ]);
+        flash('success', 'Paroles mises à jour dans le répertoire.');
+        redirect('/app/sections/' . $section['id']);
     }
 
     /** AJAX JSON : recherche dans l'historique des chants de la paroisse. */
@@ -314,9 +388,10 @@ final class ChantController
     }
 
     /**
-     * Ajoute une section (déjà enregistrée) au répertoire partagé : dédoublonne
-     * par titre (App\Models\RepertoireChant::trouverDoublon) plutôt que de
-     * créer systématiquement une nouvelle fiche.
+     * Ajoute la section au répertoire partagé : enregistre d'abord le
+     * formulaire (le chant vient d'être saisi, pas forcément sauvé), dédoublonne
+     * par titre (App\Models\RepertoireChant::trouverDoublon) plutôt que de créer
+     * systématiquement une nouvelle fiche, puis lie la section. Reste sur la page.
      */
     public function ajouterAuRepertoire(array $params): void
     {
@@ -324,11 +399,17 @@ final class ChantController
         $section = $this->ownSection((int) $params['id']);
         $comportement = SectionTypes::comportement($section['type']);
 
-        if (!in_array($comportement, ['chant', 'ordinaire', 'psaume'], true)
-            || trim((string) $section['titre']) === ''
-            || trim((string) $section['chant']) === ''
-        ) {
+        if (!in_array($comportement, ['chant', 'ordinaire', 'psaume'], true)) {
             flash('error', "Cette section n'a pas de quoi être ajoutée au répertoire.");
+            redirect('/app/sections/' . $section['id']);
+        }
+
+        $data = $this->donneesDepuisPost($section);
+        Chant::update((int) $section['id'], $data);
+        $section = array_merge($section, $data);
+
+        if (trim((string) $section['titre']) === '' || trim((string) $section['chant']) === '') {
+            flash('error', 'Renseignez au moins le titre et les paroles.');
             redirect('/app/sections/' . $section['id']);
         }
 

@@ -1,6 +1,6 @@
 <?php
 
-/** @var array $section @var array $feuille @var string $comportement @var ?array $stats @var array $urls */
+/** @var array $section @var array $feuille @var string $comportement @var ?array $stats @var array $urls @var ?array $ficheRepertoire */
 use App\Csrf;
 use App\SectionTypes;
 
@@ -37,46 +37,59 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
         <?php endif; ?>
         <div class="position-relative">
             <label class="form-label" for="titre">Titre</label>
-            <input type="text" class="form-control" id="titre" name="titre" value="<?= e($section['titre']) ?>" autocomplete="off" data-search-field>
+            <input type="text" class="form-control" id="titre" name="titre" value="<?= e($section['titre']) ?>" autocomplete="off">
             <div class="form-check mt-1">
                 <input class="form-check-input" type="checkbox" id="chercher-texte" data-search-text>
                 <label class="form-check-label small" for="chercher-texte">Chercher aussi dans le texte des chants</label>
             </div>
             <div class="autocomplete-panel list-group shadow-sm" data-suggestions hidden></div>
         </div>
-        <div class="row g-2">
-            <div class="col-sm-6">
-                <label class="form-label" for="code">Code</label>
-                <input type="text" class="form-control" id="code" name="code" value="<?= e($section['code']) ?>" autocomplete="off" data-search-field>
-            </div>
-            <div class="col-sm-6">
-                <label class="form-label" for="auteur">Auteur</label>
-                <input type="text" class="form-control" id="auteur" name="auteur" value="<?= e($section['auteur']) ?>">
-            </div>
-        </div>
+        <?php
+        // Code / auteur ne sont plus éditables (issue #14) : champs cachés,
+        // repris de la fiche du répertoire quand la section y est liée.
+        $fr = $ficheRepertoire ?? null;
+        $frHote = static fn (string $url): string => (string) preg_replace(
+            '/^www\./',
+            '',
+            parse_url($url, PHP_URL_HOST) ?: $url
+        );
+        $frPartitions = [];
+        foreach ($urls ?? [] as $u) {
+            if (!empty($u['url'])) {
+                $frPartitions[$u['url']] = $frHote((string) $u['url']);
+            }
+        }
+        if (!empty($section['url']) && !isset($frPartitions[$section['url']])) {
+            $frPartitions[$section['url']] = $frHote((string) $section['url']);
+        }
+        ?>
         <input type="hidden" name="url" value="<?= e($section['url'] ?? '') ?>" data-url-field>
-        <div class="form-text<?= empty($section['url']) || count($urls ?? []) > 1 ? ' d-none' : '' ?>" data-url-display>
-            <i class="bi bi-link-45deg"></i>
-            <a href="<?= e($section['url'] ?? '') ?>" target="_blank" rel="noopener noreferrer" data-url-link><?= e($section['url'] ?? '') ?></a>
-        </div>
-        <?php if (count($urls ?? []) > 1): ?>
-            <div class="form-text">
-                <i class="bi bi-link-45deg"></i> Trouvé sur plusieurs sources :
-                <ul class="small mb-0 ps-3">
-                    <?php foreach ($urls as $u): ?>
-                        <li>
-                            <?= e($u['source']) ?>
-                            <?php if ($u['url']): ?>
-                                — <a href="<?= e($u['url']) ?>" target="_blank" rel="noopener noreferrer"><?= e($u['url']) ?></a>
-                            <?php else: ?>
-                                <span class="text-body-secondary">(pas d'URL)</span>
-                            <?php endif; ?>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
-        <?php endif; ?>
+        <input type="hidden" name="code" value="<?= e($section['code'] ?? '') ?>" data-code-field>
+        <input type="hidden" name="auteur" value="<?= e($section['auteur'] ?? '') ?>" data-auteur-field>
         <input type="hidden" name="repertoire_id" value="<?= e((string) ($section['repertoire_id'] ?? '')) ?>" data-repertoire-field>
+
+        <div class="border rounded p-3 small bg-body-tertiary" data-fiche-repertoire<?= $fr ? '' : ' hidden' ?>>
+            <div class="fw-semibold">
+                <i class="bi bi-journal-bookmark"></i> <span data-fr-titre><?= e((string) ($fr['titre'] ?? '')) ?></span>
+            </div>
+            <div class="text-body-secondary" data-fr-meta>
+                <span data-fr-code<?= !empty($fr['code']) ? '' : ' hidden' ?>><?= e((string) ($fr['code'] ?? '')) ?></span>
+                <span data-fr-sep<?= !empty($fr['code']) && !empty($fr['auteur']) ? '' : ' hidden' ?>> · </span>
+                <span data-fr-auteur<?= !empty($fr['auteur']) ? '' : ' hidden' ?>><?= e((string) ($fr['auteur'] ?? '')) ?></span>
+            </div>
+            <div class="mt-1" data-fr-partitions<?= $frPartitions !== [] ? '' : ' hidden' ?>>
+                <i class="bi bi-link-45deg"></i> Partition<?= count($frPartitions) > 1 ? 's' : '' ?> :
+                <span data-fr-partitions-liste><?php $i = 0;
+                foreach ($frPartitions as $purl => $phote): echo $i++ ? ', ' : ''; ?><a href="<?= e($purl) ?>" target="_blank" rel="noopener noreferrer"><?= e($phote) ?></a><?php endforeach; ?></span>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-2">
+                <a class="btn btn-sm btn-outline-secondary" data-fr-ouvrir target="_blank" rel="noopener noreferrer"
+                   href="/app/repertoire/<?= (int) ($fr['id'] ?? 0) ?>"><i class="bi bi-box-arrow-up-right"></i> Ouvrir dans le répertoire</a>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-fr-recharger>
+                    <i class="bi bi-arrow-clockwise"></i> Recharger le chant depuis le répertoire
+                </button>
+            </div>
+        </div>
         <div>
             <label class="form-label" for="chant"><?= $estPsaume ? 'Texte du psaume ou du chant' : 'Texte du chant' ?></label>
             <textarea class="form-control font-monospace" id="chant" name="chant" rows="12" data-chant-input><?= e($section['chant']) ?></textarea>
@@ -147,19 +160,18 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
                 $chantRempli = trim((string) $section['titre']) !== '' && trim((string) $section['chant']) !== '';
                 ?>
                 <button type="button" class="btn btn-outline-secondary" data-clear-chant>Vider</button>
-                <!-- Ces deux boutons sont tenus à jour par le JS dès qu'on choisit / vide un
-                     chant, sans attendre l'enregistrement (data-repertoire-lien / data-ajouter-repertoire). -->
-                <a class="btn btn-outline-secondary" data-repertoire-lien
-                   href="/app/repertoire/<?= (int) ($section['repertoire_id'] ?? 0) ?>"
-                   target="_blank" rel="noopener noreferrer" <?= $aRepertoire ? '' : 'hidden' ?>>
-                    <i class="bi bi-journal-bookmark"></i> Ouvrir dans le répertoire
-                </a>
-                <!-- Même formulaire que « Enregistrer » (un <form> imbriqué serait invalide en
-                     HTML et casserait les deux) : on redirige juste sa soumission via formaction. -->
+                <!-- Ces boutons sont tenus à jour par le JS dès qu'on choisit / vide un chant,
+                     sans attendre l'enregistrement. Ils partagent le <form> principal et le
+                     redirigent via formaction (un <form> imbriqué serait invalide en HTML). -->
                 <button type="submit" class="btn btn-outline-secondary" formnovalidate data-ajouter-repertoire
                         formaction="/app/sections/<?= $section['id'] ?>/ajouter-repertoire"
                         <?= !$aRepertoire && $chantRempli ? '' : 'hidden' ?>>
                     <i class="bi bi-journal-plus"></i> Ajouter au répertoire
+                </button>
+                <button type="submit" class="btn btn-outline-secondary" formnovalidate data-maj-repertoire
+                        formaction="/app/sections/<?= $section['id'] ?>/mettre-a-jour-repertoire"
+                        <?= $aRepertoire ? '' : 'hidden' ?>>
+                    <i class="bi bi-journal-arrow-up"></i> Mettre à jour le répertoire
                 </button>
             <?php endif; ?>
         </div>
