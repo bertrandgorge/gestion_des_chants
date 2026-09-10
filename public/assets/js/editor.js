@@ -130,19 +130,38 @@
     /* ---------- Page « section » : aperçu + autocomplétion ---------- */
     var form = document.querySelector('[data-section-form]');
     if (form) {
-        // « Retour à la feuille » : on enregistre la section avant de naviguer.
-        // L'envoi du formulaire redirige déjà vers la feuille après sauvegarde.
-        var saveReturn = document.querySelector('[data-save-return]');
-        if (saveReturn) {
-            saveReturn.addEventListener('click', function (e) {
-                e.preventDefault();
-                if (typeof form.requestSubmit === 'function') {
-                    form.requestSubmit();
-                } else {
-                    form.submit();
+        // Modifications non enregistrées (issue #4) : « Retour à la feuille » et
+        // « Annuler » ne sauvegardent plus tout seuls. On prévient si le
+        // formulaire a changé sans être enregistré — sur les liens de sortie de
+        // l'éditeur comme sur une fermeture d'onglet / navigation externe.
+        var enregistrementEnCours = false;
+        var instantaneFormulaire = function () {
+            try { return new URLSearchParams(new FormData(form)).toString(); }
+            catch (e) { return null; }
+        };
+        var etatInitial = instantaneFormulaire();
+        var formulaireModifie = function () {
+            return !enregistrementEnCours
+                && etatInitial !== null
+                && instantaneFormulaire() !== etatInitial;
+        };
+
+        form.addEventListener('submit', function () { enregistrementEnCours = true; });
+
+        window.addEventListener('beforeunload', function (e) {
+            if (formulaireModifie()) { e.preventDefault(); e.returnValue = ''; }
+        });
+
+        document.querySelectorAll('[data-quitter-editeur]').forEach(function (lien) {
+            lien.addEventListener('click', function (e) {
+                if (formulaireModifie()
+                    && !confirm('Ce chant a été modifié mais pas enregistré. Quitter la page sans enregistrer ?')) {
+                    e.preventDefault();
+                    return;
                 }
+                enregistrementEnCours = true; // sortie assumée : pas de nouvelle alerte
             });
-        }
+        });
 
         var chantInput = chantInputGlobal;
         var preview = previewGlobal;

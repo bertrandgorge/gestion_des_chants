@@ -11,7 +11,7 @@ $estPsaume = $comportement === 'psaume';
 $estChant = in_array($comportement, ['chant', 'ordinaire', 'psaume'], true);
 $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
 ?>
-<div class="mb-3"><a href="<?= e($retour) ?>" class="small text-decoration-none" data-save-return><i class="bi bi-arrow-left"></i> Retour à la feuille</a></div>
+<div class="mb-3"><a href="<?= e($retour) ?>" class="small text-decoration-none" data-quitter-editeur><i class="bi bi-arrow-left"></i> Retour à la feuille</a></div>
 
 <h1 class="h4 mb-1"><?= e($section['nom']) ?></h1>
 <p class="text-body-secondary small">
@@ -172,7 +172,7 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
             <?php endif; ?>
         </div>
         <div class="d-flex gap-2">
-            <a class="btn btn-outline-secondary flex-fill" href="<?= e($retour) ?>">Annuler</a>
+            <a class="btn btn-outline-secondary flex-fill" href="<?= e($retour) ?>" data-quitter-editeur>Annuler</a>
             <button class="btn btn-primary flex-fill">Enregistrer</button>
         </div>
     </div>
