@@ -6,12 +6,14 @@ namespace App\Controllers;
 
 use App\Auth;
 use App\Database;
+use App\Import\UrlImporter;
 use App\Models\Chant;
 use App\Models\Clocher;
 use App\Models\FeuilleChant;
 use App\Models\Paroisse;
 use App\Models\RepertoireChant;
 use App\Models\Statistique;
+use App\PropositionsChorale;
 use App\SectionTypes;
 
 final class ChantController
@@ -142,13 +144,72 @@ final class ChantController
             $urls = RepertoireChant::urls($repertoireId);
         }
 
+        // Aide au choix : chants déjà pris dans la paroisse pour cette section
+        // sur des messes qui partageaient une des lectures du jour.
+        $lectures = $comportement === 'chant'
+            ? Chant::pourMemesLectures((int) $feuille['id'], (string) $section['type'], Auth::paroisseId())
+            : [];
+
         render('chantre', 'chant/section_form', [
             'section'      => $section,
             'feuille'      => $feuille,
             'comportement' => $comportement,
             'stats'        => $stats,
             'urls'         => $urls,
+            'lectures'     => $lectures,
             'titre'        => $section['nom'],
+        ]);
+    }
+
+    /**
+     * AJAX JSON : chants proposés par choralepolefontainebleau.org pour le
+     * dimanche de la feuille, dans la rubrique correspondant à la section.
+     */
+    public function suggestionsExternes(array $params): void
+    {
+        Auth::requireLogin();
+        $section = $this->ownSection((int) $params['id']);
+        if (SectionTypes::comportement((string) $section['type']) !== 'chant') {
+            json_response(['ok' => true, 'url' => null, 'chants' => []]);
+        }
+        $feuille = FeuilleChant::find((int) $section['feuille_id']) ?? [];
+
+        json_response(PropositionsChorale::suggestions($feuille, (string) $section['type']));
+    }
+
+    /**
+     * AJAX JSON : importe (ou retrouve) dans le répertoire partagé un chant
+     * proposé par choralepolefontainebleau.org, et renvoie ses champs pour
+     * remplir la section.
+     */
+    public function importerSuggestion(array $params): void
+    {
+        Auth::requireLogin();
+        $this->ownSection((int) $params['id']);
+
+        $url = trim((string) input('url', ''));
+        $host = preg_replace('~^www\.~', '', strtolower((string) parse_url($url, PHP_URL_HOST)));
+        if ($host !== 'choralepolefontainebleau.org') {
+            json_response(['ok' => false, 'error' => 'URL non reconnue.'], 422);
+        }
+
+        $resultat = UrlImporter::importer($url);
+        $fiche = $resultat['ok'] && $resultat['id'] !== null
+            ? RepertoireChant::find((int) $resultat['id'])
+            : null;
+        if ($fiche === null) {
+            json_response(['ok' => false, 'error' => $resultat['message']], 502);
+        }
+
+        json_response([
+            'ok'            => true,
+            'titre'         => $fiche['titre'],
+            'code'          => $fiche['code'] ?? '',
+            'auteur'        => $fiche['auteur'] ?? '',
+            'chant'         => $fiche['chant'] ?? '',
+            'url'           => $url,
+            'repertoire_id' => (int) $fiche['id'],
+            'ordinaire'     => $fiche['ordinaire'] ?? null,
         ]);
     }
 

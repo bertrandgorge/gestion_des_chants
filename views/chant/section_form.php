@@ -174,6 +174,10 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
     </div>
 </form>
 
+<?php if ($estChant): ?>
+    <?= view('chant/_suggestions', ['section' => $section, 'lectures' => $lectures ?? []]) ?>
+<?php endif; ?>
+
 <?php if ($stats !== null): ?>
     <?= view('partials/stats_chant', $stats) ?>
 <?php endif; ?>

@@ -189,6 +189,42 @@
             if (display) display.classList.toggle('d-none', !id);
         }
 
+        function setVal(name, value) {
+            var f = form.querySelector('[name="' + name + '"]');
+            if (f) f.value = value || '';
+        }
+
+        var comportement = form.getAttribute('data-comportement');
+        var estOrdinaire = form.getAttribute('data-ordinaire') === '1';
+        var feuille = form.getAttribute('data-feuille');
+        var type = form.getAttribute('data-type');
+        var panel = form.querySelector('[data-suggestions]');
+
+        // Remplit la section à partir d'un chant (recherche, propositions du
+        // site, historique des lectures). Reprend l'ordinaire au besoin.
+        function choisirChant(item) {
+            if (!item) return;
+            setVal('titre', item.titre);
+            setVal('code', item.code);
+            setVal('auteur', item.auteur);
+            setVal('chant', item.chant);
+            setChantUrl(item.url);
+            setRepertoireId(item.repertoire_id);
+            if (chantInputGlobal && previewGlobal) {
+                previewGlobal.innerHTML = renderChant(chantInputGlobal.value);
+            }
+            if (estOrdinaire && item.ordinaire && item.repertoire_id) {
+                var sectionId = window.location.pathname.split('/').pop();
+                postForm('/app/sections/' + sectionId + '/reprendre-ordinaire', {
+                    repertoire_id: item.repertoire_id
+                }).then(function (res) {
+                    if (res.ok && res.reprises && res.reprises.length) {
+                        toast('Ordinaire repris : ' + res.reprises.join(', '));
+                    }
+                });
+            }
+        }
+
         var clearBtn = form.querySelector('[data-clear-chant]');
         if (clearBtn) {
             clearBtn.addEventListener('click', function () {
@@ -203,12 +239,6 @@
                 if (t) t.focus();
             });
         }
-
-        var comportement = form.getAttribute('data-comportement');
-        var estOrdinaire = form.getAttribute('data-ordinaire') === '1';
-        var feuille = form.getAttribute('data-feuille');
-        var type = form.getAttribute('data-type');
-        var panel = form.querySelector('[data-suggestions]');
 
         if ((comportement === 'chant' || comportement === 'ordinaire') && panel) {
             var titreField = form.querySelector('#titre');
@@ -256,39 +286,12 @@
                             a.innerHTML = '<span class="fw-semibold">' + escapeHtml(item.titre || '(sans titre)') + '</span>'
                                 + (item.code ? ' <span class="text-body-secondary">' + escapeHtml(item.code) + '</span>' : '')
                                 + '<div class="small">' + badges + '</div>';
-                            a.addEventListener('click', function () { choose(item); });
+                            a.addEventListener('click', function () { choisirChant(item); hidePanel(); });
                             panel.appendChild(a);
                         });
                         panel.hidden = false;
                     })
                     .catch(hidePanel);
-            }
-
-            function choose(item) {
-                setVal('titre', item.titre);
-                setVal('code', item.code);
-                setVal('auteur', item.auteur);
-                setVal('chant', item.chant);
-                setChantUrl(item.url);
-                setRepertoireId(item.repertoire_id);
-                if (chantInput && preview) preview.innerHTML = renderChant(chantInput.value);
-                hidePanel();
-
-                if (estOrdinaire && item.ordinaire && item.repertoire_id) {
-                    var sectionId = window.location.pathname.split('/').pop();
-                    postForm('/app/sections/' + sectionId + '/reprendre-ordinaire', {
-                        repertoire_id: item.repertoire_id
-                    }).then(function (res) {
-                        if (res.ok && res.reprises && res.reprises.length) {
-                            toast('Ordinaire repris : ' + res.reprises.join(', '));
-                        }
-                    });
-                }
-            }
-
-            function setVal(name, value) {
-                var f = form.querySelector('[name="' + name + '"]');
-                if (f) f.value = value || '';
             }
 
             function onType() {
@@ -314,6 +317,85 @@
             document.addEventListener('click', function (e) {
                 if (!panel.contains(e.target) && e.target !== titreField && e.target !== codeField) hidePanel();
             });
+        }
+
+        /* ---------- Aide au choix : historique des lectures + propositions du site ---------- */
+
+        // Boutons « Choisir » rendus côté serveur (chants déjà pris pour ces lectures).
+        document.querySelectorAll('[data-choisir]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                try { choisirChant(JSON.parse(btn.getAttribute('data-choisir'))); } catch (e) { /* ignore */ }
+            });
+        });
+
+        var suggBox = document.querySelector('[data-suggestions-chant]');
+        if (suggBox) {
+            var suggEtat = suggBox.querySelector('[data-suggestions-etat]');
+            var suggListe = suggBox.querySelector('[data-suggestions-liste]');
+
+            var finSugg = function (message) {
+                suggEtat.textContent = message;
+                suggEtat.hidden = false;
+                suggListe.hidden = true;
+            };
+
+            fetch(suggBox.getAttribute('data-endpoint'), { headers: { 'X-Requested-With': 'fetch' } })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (!res || !res.ok) { finSugg('Propositions indisponibles pour le moment.'); return; }
+                    if (!res.chants || !res.chants.length) { finSugg('Aucune proposition pour cette section ce dimanche.'); return; }
+
+                    suggListe.innerHTML = '';
+                    res.chants.forEach(function (item) {
+                        var row = document.createElement('div');
+                        row.className = 'list-group-item d-flex flex-wrap align-items-center gap-2';
+
+                        var libelle = '<span class="flex-grow-1"><span class="fw-semibold">'
+                            + escapeHtml(item.titre || '(sans titre)') + '</span>'
+                            + (item.code ? ' <span class="text-body-secondary">' + escapeHtml(item.code) + '</span>' : '')
+                            + (item.repertoire_id ? '' : ' <span class="badge text-bg-light border">nouveau</span>')
+                            + '</span>';
+
+                        var lien = item.repertoire_id
+                            ? '/app/repertoire/' + item.repertoire_id
+                            : item.url;
+                        var ouvrir = document.createElement('a');
+                        ouvrir.className = 'btn btn-sm btn-outline-secondary';
+                        ouvrir.target = '_blank';
+                        ouvrir.rel = 'noopener noreferrer';
+                        ouvrir.href = lien;
+                        ouvrir.innerHTML = '<i class="bi bi-box-arrow-up-right"></i> Ouvrir';
+
+                        var choisir = document.createElement('button');
+                        choisir.type = 'button';
+                        choisir.className = 'btn btn-sm btn-outline-primary';
+                        choisir.textContent = 'Choisir';
+                        choisir.addEventListener('click', function () {
+                            if (item.repertoire_id) { choisirChant(item); return; }
+                            choisir.disabled = true;
+                            var sectionId = window.location.pathname.split('/').pop();
+                            postForm('/app/sections/' + sectionId + '/importer-suggestion', { url: item.url })
+                                .then(function (imp) {
+                                    choisir.disabled = false;
+                                    if (imp && imp.ok) {
+                                        choisirChant(imp);
+                                        toast('« ' + (imp.titre || 'Chant') + " » ajouté au répertoire et repris.");
+                                    } else {
+                                        toast('Import impossible : ' + ((imp && imp.error) || 'erreur'));
+                                    }
+                                });
+                        });
+
+                        row.innerHTML = libelle;
+                        row.appendChild(ouvrir);
+                        row.appendChild(choisir);
+                        suggListe.appendChild(row);
+                    });
+
+                    suggEtat.hidden = true;
+                    suggListe.hidden = false;
+                })
+                .catch(function () { finSugg('Propositions indisponibles pour le moment.'); });
         }
     }
 })();
