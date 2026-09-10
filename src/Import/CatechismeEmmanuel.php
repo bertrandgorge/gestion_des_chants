@@ -113,6 +113,8 @@ final class CatechismeEmmanuel
             return null;
         }
 
+        // catechisme-emmanuel.com ne porte pas de cote SECLI (seulement un code
+        // IEV, qui n'en est pas une) : type déduit du seul titre.
         $type = TypeLiturgique::deduire($titre);
 
         return [

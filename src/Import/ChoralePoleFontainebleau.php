@@ -116,7 +116,8 @@ final class ChoralePoleFontainebleau
         // premier libellé, ramené en minuscules pour un nom de section lisible.
         $theme        = $themeListe;
         $themePremier = mb_strtolower(trim(explode(',', $theme)[0]), 'UTF-8');
-        $type         = TypeLiturgique::deduire($themePremier !== '' ? $themePremier : $titre);
+        // La cote SECLI prime sur la thématique du site (issue #11).
+        $type         = TypeLiturgique::deduire($themePremier !== '' ? $themePremier : $titre, $code);
 
         return [
             'titre'           => $titre,

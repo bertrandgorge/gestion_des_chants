@@ -17,11 +17,31 @@ final class TypeLiturgique
     /**
      * Slug de `App\SectionTypes::DEFAUT` (entree, kyrie, gloria, psaume, evangile,
      * priere_universelle, offertoire, sanctus, anamnese, communion, envoi…) déduit
-     * du libellé, ou self::DEFAUT si rien n'est reconnu.
+     * de la cote SECLI puis, à défaut, du libellé, ou self::DEFAUT si rien n'est
+     * reconnu.
+     *
+     * Précédence : une cote SECLI *sûre* (rite A/B/D/T/U/Z — voir App\Import\Secli)
+     * l'emporte sur les mots-clés du libellé, qui sont du texte libre peu fiable.
+     * Le libellé ne sert plus qu'à ce que la cote ne sait pas trancher : les
+     * sous-parties de l'ordinaire (Kyrie/Gloria/Sanctus/Agnus) quand la cote dit
+     * seulement « ordinaire » (rite C / préfixe AL).
      */
-    public static function deduire(string $libelle): string
+    public static function deduire(string $libelle, string $code = ''): string
     {
-        return self::motif($libelle) ?? self::DEFAUT;
+        $rite = Secli::type($code);
+        if ($rite !== null) {
+            return $rite;
+        }
+
+        $label = self::motif($libelle);
+
+        if (Secli::estOrdinaire($code)) {
+            return in_array($label, ['kyrie', 'gloria', 'sanctus', 'anamnese', 'agnus'], true)
+                ? $label
+                : ($label ?? self::DEFAUT);
+        }
+
+        return $label ?? self::DEFAUT;
     }
 
     /**
