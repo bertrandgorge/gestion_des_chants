@@ -427,23 +427,31 @@
                     suggListe.innerHTML = '';
                     res.chants.forEach(function (item) {
                         var row = document.createElement('div');
-                        row.className = 'list-group-item d-flex flex-wrap align-items-center gap-2';
+                        row.className = 'list-group-item py-1 d-flex flex-wrap align-items-center gap-2';
 
-                        var libelle = '<span class="flex-grow-1"><span class="fw-semibold">'
-                            + escapeHtml(item.titre || '(sans titre)') + '</span>'
-                            + (item.code ? ' <span class="text-body-secondary">' + escapeHtml(item.code) + '</span>' : '')
-                            + (item.repertoire_id ? '' : ' <span class="badge text-bg-light border">nouveau</span>')
-                            + '</span>';
-
+                        // Titre cliquable : fiche du répertoire si le chant y est,
+                        // sinon la page de la chorale. Auteur(s) en dessous.
                         var lien = item.repertoire_id
                             ? '/app/repertoire/' + item.repertoire_id
                             : item.url;
-                        var ouvrir = document.createElement('a');
-                        ouvrir.className = 'btn btn-sm btn-outline-secondary';
-                        ouvrir.target = '_blank';
-                        ouvrir.rel = 'noopener noreferrer';
-                        ouvrir.href = lien;
-                        ouvrir.innerHTML = '<i class="bi bi-box-arrow-up-right"></i> Ouvrir';
+                        var infos = document.createElement('span');
+                        infos.className = 'flex-grow-1';
+                        var titre = document.createElement('a');
+                        titre.href = lien;
+                        titre.target = '_blank';
+                        titre.rel = 'noopener noreferrer';
+                        titre.className = 'fw-semibold text-decoration-none';
+                        titre.textContent = item.titre || '(sans titre)';
+                        infos.appendChild(titre);
+                        if (item.code) {
+                            infos.insertAdjacentHTML('beforeend', ' <span class="text-body-secondary small">' + escapeHtml(item.code) + '</span>');
+                        }
+                        if (!item.repertoire_id) {
+                            infos.insertAdjacentHTML('beforeend', ' <span class="badge text-bg-light border">nouveau</span>');
+                        }
+                        if (item.auteur) {
+                            infos.insertAdjacentHTML('beforeend', '<span class="d-block text-body-secondary small">' + escapeHtml(item.auteur) + '</span>');
+                        }
 
                         var choisir = document.createElement('button');
                         choisir.type = 'button';
@@ -465,8 +473,7 @@
                                 });
                         });
 
-                        row.innerHTML = libelle;
-                        row.appendChild(ouvrir);
+                        row.appendChild(infos);
                         row.appendChild(choisir);
                         suggListe.appendChild(row);
                     });

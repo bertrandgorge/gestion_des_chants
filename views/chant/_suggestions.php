@@ -30,7 +30,7 @@ $payload = static function (array $c): string {
     <?php if ($lectures !== []): ?>
         <div class="mb-3">
             <div class="fw-semibold small mb-2">Déjà pris pour ces lectures (paroisse)</div>
-            <div class="list-group overflow-auto" style="max-height:22rem">
+            <div class="list-group">
                 <?php foreach ($lectures as $c): ?>
                     <div class="list-group-item d-flex flex-wrap align-items-center gap-2">
                         <span class="flex-grow-1">
@@ -58,7 +58,7 @@ $payload = static function (array $c): string {
             <p class="text-body-secondary small mb-0" data-suggestions-etat>
                 <span class="spinner-border spinner-border-sm"></span> Chargement…
             </p>
-            <div class="list-group overflow-auto" style="max-height:22rem" data-suggestions-liste hidden></div>
+            <div class="list-group" data-suggestions-liste hidden></div>
         </div>
     <?php endif; ?>
 </div>
