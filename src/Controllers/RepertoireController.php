@@ -163,12 +163,12 @@ final class RepertoireController
         redirect('/app/repertoire/' . $survivant['id']);
     }
 
-    /** @return array<string,string> slug => libellé, types chant/ordinaire uniquement. */
+    /** @return array<string,string> slug => libellé, types utilisables comme chant. */
     private function typesDisponibles(): array
     {
         $types = [];
         foreach (SectionTypes::DEFAUT as $s) {
-            if (in_array(SectionTypes::comportement($s['type']), ['chant', 'ordinaire'], true)) {
+            if (in_array(SectionTypes::comportement($s['type']), ['chant', 'ordinaire', 'psaume'], true)) {
                 $types[$s['type']] = $s['nom'];
             }
         }

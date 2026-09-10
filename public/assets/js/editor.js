@@ -263,7 +263,7 @@
             });
         }
 
-        if ((comportement === 'chant' || comportement === 'ordinaire') && panel) {
+        if ((comportement === 'chant' || comportement === 'ordinaire' || comportement === 'psaume') && panel) {
             var titreField = form.querySelector('#titre');
             var codeField = form.querySelector('#code');
             var searchTextField = form.querySelector('[data-search-text]');

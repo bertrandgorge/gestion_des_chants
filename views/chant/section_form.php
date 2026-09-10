@@ -5,7 +5,10 @@ use App\Csrf;
 use App\SectionTypes;
 
 $retour = '/app/feuilles/' . $section['feuille_id'];
-$estChant = in_array($comportement, ['chant', 'ordinaire'], true);
+// Le psaume s'édite comme un chant (recherche, répertoire…) tout en gardant sa
+// référence de lecture — il peut être lu ou remplacé par un chant (issue #3).
+$estPsaume = $comportement === 'psaume';
+$estChant = in_array($comportement, ['chant', 'ordinaire', 'psaume'], true);
 $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
 ?>
 <div class="mb-3"><a href="<?= e($retour) ?>" class="small text-decoration-none" data-save-return><i class="bi bi-arrow-left"></i> Retour à la feuille</a></div>
@@ -25,6 +28,13 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
     <?= Csrf::field() ?>
 
     <?php if ($estChant): ?>
+        <?php if ($estPsaume): ?>
+            <div>
+                <label class="form-label" for="reference">Référence de la lecture</label>
+                <input type="text" class="form-control" id="reference" name="reference" value="<?= e($section['reference']) ?>" placeholder="Ps 94 (95)">
+                <div class="form-text">Conservée même si le psaume est remplacé par un chant.</div>
+            </div>
+        <?php endif; ?>
         <div class="position-relative">
             <label class="form-label" for="titre">Titre</label>
             <input type="text" class="form-control" id="titre" name="titre" value="<?= e($section['titre']) ?>" autocomplete="off" data-search-field>
@@ -68,7 +78,7 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
         <?php endif; ?>
         <input type="hidden" name="repertoire_id" value="<?= e((string) ($section['repertoire_id'] ?? '')) ?>" data-repertoire-field>
         <div>
-            <label class="form-label" for="chant">Texte du chant</label>
+            <label class="form-label" for="chant"><?= $estPsaume ? 'Texte du psaume ou du chant' : 'Texte du chant' ?></label>
             <textarea class="form-control font-monospace" id="chant" name="chant" rows="12" data-chant-input><?= e($section['chant']) ?></textarea>
             <div class="form-text">Séparez couplets et refrains par une ligne vide. Un bloc commençant par « R/ » ou « R. » est un refrain (affiché en gras).</div>
         </div>
@@ -94,25 +104,6 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
             <label class="form-label" for="contenu">Contenu</label>
             <textarea class="form-control font-monospace" id="contenu" name="contenu" rows="14"><?= e($section['contenu']) ?></textarea>
             <div class="form-text">Contenu HTML issu d'AELF.</div>
-        </div>
-
-    <?php elseif ($comportement === 'psaume'): ?>
-        <div>
-            <label class="form-label" for="titre">Titre</label>
-            <input type="text" class="form-control" id="titre" name="titre" value="<?= e($section['titre']) ?>">
-        </div>
-        <div>
-            <label class="form-label" for="reference">Référence</label>
-            <input type="text" class="form-control" id="reference" name="reference" value="<?= e($section['reference']) ?>" placeholder="Ps 94 (95)">
-        </div>
-        <div>
-            <label class="form-label" for="chant">Texte du psaume</label>
-            <textarea class="form-control font-monospace" id="chant" name="chant" rows="12" data-chant-input><?= e($section['chant']) ?></textarea>
-            <div class="form-text">Refrain préfixé par « R/ », strophes séparées par une ligne vide.</div>
-        </div>
-        <div>
-            <div class="form-label">Aperçu</div>
-            <div class="chant-preview border rounded p-3" data-chant-preview><?= render_chant($section['chant']) ?></div>
         </div>
 
     <?php elseif ($comportement === 'evangile'): ?>
@@ -180,7 +171,11 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
 </form>
 
 <?php if ($estChant): ?>
-    <?= view('chant/_suggestions', ['section' => $section, 'lectures' => $lectures ?? []]) ?>
+    <?= view('chant/_suggestions', [
+        'section'  => $section,
+        'lectures' => $lectures ?? [],
+        'externe'  => $comportement === 'chant',
+    ]) ?>
 <?php endif; ?>
 
 <?php if ($stats !== null): ?>

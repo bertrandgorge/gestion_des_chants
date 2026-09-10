@@ -24,7 +24,10 @@ $partitionsUrls = array_keys($partitionsUrls);
         <?= e($s['nom']) ?>
     </h2>
 
-    <?php if (in_array($comportement, ['chant', 'ordinaire'], true)): ?>
+    <?php if (in_array($comportement, ['chant', 'ordinaire', 'psaume'], true)): ?>
+        <?php if ($comportement === 'psaume' && $s['reference']): ?>
+            <p class="feuille-ref"><?= e($s['reference']) ?></p>
+        <?php endif; ?>
         <?php if ($partitionsUrls !== []): ?>
             <p class="feuille-chant-partitions">
                 Voir les partitions :
@@ -38,10 +41,6 @@ $partitionsUrls = array_keys($partitionsUrls);
                 ?>
             </p>
         <?php endif; ?>
-        <div class="feuille-chant-texte"><?= render_chant($s['chant']) ?></div>
-
-    <?php elseif ($comportement === 'psaume'): ?>
-        <?php if ($s['reference']): ?><p class="feuille-ref"><?= e($s['reference']) ?></p><?php endif; ?>
         <div class="feuille-chant-texte"><?= render_chant($s['chant']) ?></div>
 
     <?php elseif ($comportement === 'lecture'): ?>

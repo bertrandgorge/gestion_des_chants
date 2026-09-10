@@ -7,7 +7,12 @@
  *
  * @var array $section
  * @var array<int,array<string,mixed>> $lectures
+ * @var bool $externe  afficher le bloc « propositions du site » (rubrique existante pour ce type)
  */
+
+if ($lectures === [] && empty($externe)) {
+    return; // rien à proposer : pas d'encart
+}
 
 /** Charge utile « choisir ce chant » pour le JS (format attendu par choisirChant). */
 $payload = static function (array $c): string {
@@ -50,11 +55,13 @@ $payload = static function (array $c): string {
         </div>
     <?php endif; ?>
 
-    <div data-suggestions-chant data-endpoint="/app/sections/<?= (int) $section['id'] ?>/suggestions">
-        <div class="fw-semibold small mb-2">Propositions de choralepolefontainebleau.org</div>
-        <p class="text-body-secondary small mb-0" data-suggestions-etat>
-            <span class="spinner-border spinner-border-sm"></span> Chargement…
-        </p>
-        <div class="list-group overflow-auto" style="max-height:22rem" data-suggestions-liste hidden></div>
-    </div>
+    <?php if (!empty($externe)): ?>
+        <div data-suggestions-chant data-endpoint="/app/sections/<?= (int) $section['id'] ?>/suggestions">
+            <div class="fw-semibold small mb-2">Propositions de choralepolefontainebleau.org</div>
+            <p class="text-body-secondary small mb-0" data-suggestions-etat>
+                <span class="spinner-border spinner-border-sm"></span> Chargement…
+            </p>
+            <div class="list-group overflow-auto" style="max-height:22rem" data-suggestions-liste hidden></div>
+        </div>
+    <?php endif; ?>
 </div>

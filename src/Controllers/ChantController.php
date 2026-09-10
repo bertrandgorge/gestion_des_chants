@@ -127,9 +127,13 @@ final class ChantController
         $feuille = FeuilleChant::find((int) $section['feuille_id']);
         $comportement = SectionTypes::comportement($section['type']);
 
+        // Le psaume s'édite comme un chant (issue #3) : mêmes affordances
+        // (recherche, lien répertoire, aide au choix), sa référence en plus.
+        $editeurChant = in_array($comportement, ['chant', 'ordinaire', 'psaume'], true);
+
         $stats = null;
         $urls = [];
-        if (in_array($comportement, ['chant', 'ordinaire'], true) && !empty($section['repertoire_id'])) {
+        if ($editeurChant && !empty($section['repertoire_id'])) {
             $repertoireId = (int) $section['repertoire_id'];
             $paroisseId = Auth::paroisseId();
             $chantRepertoire = RepertoireChant::find($repertoireId);
@@ -146,7 +150,7 @@ final class ChantController
 
         // Aide au choix : chants déjà pris dans la paroisse pour cette section
         // sur des messes qui partageaient une des lectures du jour.
-        $lectures = $comportement === 'chant'
+        $lectures = in_array($comportement, ['chant', 'psaume'], true)
             ? Chant::pourMemesLectures((int) $feuille['id'], (string) $section['type'], Auth::paroisseId())
             : [];
 
@@ -224,7 +228,8 @@ final class ChantController
             'chant'     => ['titre', 'auteur', 'code', 'chant', 'url'],
             'ordinaire' => ['titre', 'auteur', 'code', 'chant', 'url'],
             'lecture'   => ['titre', 'reference', 'introduction', 'contenu'],
-            'psaume'    => ['titre', 'reference', 'chant'],
+            // Le psaume s'édite comme un chant tout en gardant sa référence (issue #3).
+            'psaume'    => ['titre', 'auteur', 'code', 'chant', 'url', 'reference'],
             'evangile'  => ['acclamation', 'introduction', 'reference', 'contenu'],
             'priere'    => ['contenu'],
         ];
@@ -234,7 +239,7 @@ final class ChantController
         if (array_key_exists('chant', $data)) {
             $data['nb_couplets'] = count_couplets($data['chant'], false);
         }
-        if (in_array($comportement, ['chant', 'ordinaire'], true)) {
+        if (in_array($comportement, ['chant', 'ordinaire', 'psaume'], true)) {
             $repertoireId = trim((string) ($_POST['repertoire_id'] ?? ''));
             $data['repertoire_id'] = $repertoireId !== '' ? (int) $repertoireId : null;
         }
@@ -319,7 +324,7 @@ final class ChantController
         $section = $this->ownSection((int) $params['id']);
         $comportement = SectionTypes::comportement($section['type']);
 
-        if (!in_array($comportement, ['chant', 'ordinaire'], true)
+        if (!in_array($comportement, ['chant', 'ordinaire', 'psaume'], true)
             || trim((string) $section['titre']) === ''
             || trim((string) $section['chant']) === ''
         ) {
