@@ -151,18 +151,23 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
     <div class="d-flex flex-column flex-sm-row gap-2 justify-content-sm-between">
         <div class="d-flex flex-wrap gap-2 order-last order-sm-first">
             <?php if ($estChant): ?>
+                <?php
+                $aRepertoire = !empty($section['repertoire_id']);
+                $chantRempli = trim((string) $section['titre']) !== '' && trim((string) $section['chant']) !== '';
+                ?>
                 <button type="button" class="btn btn-outline-secondary" data-clear-chant>Vider</button>
-            <?php endif; ?>
-            <?php if ($estChant && !empty($section['repertoire_id'])): ?>
-                <a class="btn btn-outline-secondary" href="/app/repertoire/<?= (int) $section['repertoire_id'] ?>" target="_blank" rel="noopener noreferrer">
+                <!-- Ces deux boutons sont tenus à jour par le JS dès qu'on choisit / vide un
+                     chant, sans attendre l'enregistrement (data-repertoire-lien / data-ajouter-repertoire). -->
+                <a class="btn btn-outline-secondary" data-repertoire-lien
+                   href="/app/repertoire/<?= (int) ($section['repertoire_id'] ?? 0) ?>"
+                   target="_blank" rel="noopener noreferrer" <?= $aRepertoire ? '' : 'hidden' ?>>
                     <i class="bi bi-journal-bookmark"></i> Ouvrir dans le répertoire
                 </a>
-            <?php endif; ?>
-            <?php if ($estChant && empty($section['repertoire_id']) && trim((string) $section['titre']) !== '' && trim((string) $section['chant']) !== ''): ?>
                 <!-- Même formulaire que « Enregistrer » (un <form> imbriqué serait invalide en
                      HTML et casserait les deux) : on redirige juste sa soumission via formaction. -->
-                <button type="submit" class="btn btn-outline-secondary" formnovalidate
-                        formaction="/app/sections/<?= $section['id'] ?>/ajouter-repertoire">
+                <button type="submit" class="btn btn-outline-secondary" formnovalidate data-ajouter-repertoire
+                        formaction="/app/sections/<?= $section['id'] ?>/ajouter-repertoire"
+                        <?= !$aRepertoire && $chantRempli ? '' : 'hidden' ?>>
                     <i class="bi bi-journal-plus"></i> Ajouter au répertoire
                 </button>
             <?php endif; ?>

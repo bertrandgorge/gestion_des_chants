@@ -185,8 +185,24 @@
         function setRepertoireId(id) {
             var field = form.querySelector('[data-repertoire-field]');
             if (field) field.value = id || '';
-            var display = form.querySelector('[data-repertoire-display]');
-            if (display) display.classList.toggle('d-none', !id);
+            majBoutonsRepertoire();
+        }
+
+        // Tient à jour, sans attendre l'enregistrement, les boutons « Ouvrir dans
+        // le répertoire » / « Ajouter au répertoire » selon l'état courant du
+        // formulaire (chant lié au répertoire ? titre + paroles renseignés ?).
+        function majBoutonsRepertoire() {
+            var rid = (form.querySelector('[data-repertoire-field]') || {}).value || '';
+            var titre = ((form.querySelector('[name="titre"]') || {}).value || '').trim();
+            var chant = ((form.querySelector('[name="chant"]') || {}).value || '').trim();
+
+            var lien = form.querySelector('[data-repertoire-lien]');
+            if (lien) {
+                if (rid) lien.href = '/app/repertoire/' + rid;
+                lien.hidden = !rid;
+            }
+            var ajouter = form.querySelector('[data-ajouter-repertoire]');
+            if (ajouter) ajouter.hidden = !!rid || !titre || !chant;
         }
 
         function setVal(name, value) {
@@ -224,6 +240,13 @@
                 });
             }
         }
+
+        // Frappe au clavier dans titre / paroles : le bouton « Ajouter au
+        // répertoire » apparaît dès que les deux sont renseignés.
+        ['[name="titre"]', '[name="chant"]'].forEach(function (sel) {
+            var f = form.querySelector(sel);
+            if (f) f.addEventListener('input', majBoutonsRepertoire);
+        });
 
         var clearBtn = form.querySelector('[data-clear-chant]');
         if (clearBtn) {
