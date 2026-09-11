@@ -114,7 +114,8 @@ final class ChantonsEnEglise
             // catechisme-emmanuel.com. On ne le retient que si l'éditeur est l'Emmanuel.
             'code_repertoire' => Repertoire::estEmmanuel($editeur) ? Repertoire::iev($categorieBrute) : null,
             'categorie'      => $categorie,
-            'type'           => TypeLiturgique::deduire($categorie),
+            // La catégorie du site est peu fiable : la cote SECLI prime (issue #11).
+            'type'           => TypeLiturgique::deduire($categorie, $code),
             'chant'          => $chant,
         ];
     }

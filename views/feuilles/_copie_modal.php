@@ -20,7 +20,13 @@ use App\Csrf;
                         <?php foreach ($clochers as $c): ?>
                             <option value="<?= $c['id'] ?>" data-defaut="<?= e(\App\Models\Clocher::prochaineDateParDefaut($c)->format('Y-m-d\TH:i')) ?>"><?= e($c['nom']) ?></option>
                         <?php endforeach; ?>
+                        <option value="autre">— Autre lieu —</option>
                     </select>
+                </div>
+                <div data-lieu-libre hidden>
+                    <label class="form-label" for="copie_lieu">Nom du lieu</label>
+                    <input type="text" class="form-control" id="copie_lieu" name="lieu" maxlength="150"
+                           placeholder="ex. Chapelle du camp scout">
                 </div>
                 <div>
                     <label class="form-label" for="copie_date">Date et heure</label>

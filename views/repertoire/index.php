@@ -1,6 +1,6 @@
 <?php
 
-/** @var array $chants @var string $q @var bool $texte */
+/** @var array $chants @var array $tags @var string $q @var bool $texte @var string $type */
 use App\Csrf;
 ?>
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
@@ -12,7 +12,7 @@ use App\Csrf;
         <div class="card card-body h-100">
             <form method="get" action="/app/repertoire" class="vstack gap-2">
                 <div class="d-flex gap-2">
-                    <input type="search" class="form-control" name="q" value="<?= e($q) ?>" placeholder="Titre, code, auteur, mot-clé, source…">
+                    <input type="search" class="form-control" name="q" value="<?= e($q) ?>" placeholder="Titre, code, auteur, mot-clé, type, source…">
                     <button class="btn btn-primary text-nowrap"><i class="bi bi-search"></i> Chercher</button>
                 </div>
                 <div class="form-check">
@@ -49,10 +49,23 @@ use App\Csrf;
     </div>
 </div>
 
+<?php if ($tags): ?>
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <?php foreach ($tags as $tag): ?>
+            <?php $actif = $type === $tag['type']; ?>
+            <a class="btn btn-sm <?= $actif ? 'btn-primary' : 'btn-outline-secondary' ?>"
+               href="/app/repertoire<?= e(query_suffix(['q' => $q, 'texte' => $texte ? '1' : '', 'type' => $actif ? '' : $tag['type']])) ?>">
+                <?= e($tag['nom']) ?>
+                <span class="badge rounded-pill <?= $actif ? 'text-bg-light text-dark' : 'text-bg-secondary' ?>"><?= $tag['n'] ?></span>
+            </a>
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
+
 <?php if (!$chants): ?>
     <p class="text-body-secondary">Aucun chant trouvé.</p>
 <?php else: ?>
-    <?php $qs = query_suffix(['q' => $q, 'texte' => $texte ? '1' : '']); ?>
+    <?php $qs = query_suffix(['q' => $q, 'texte' => $texte ? '1' : '', 'type' => $type]); ?>
     <form method="post" action="/app/repertoire/fusionner" id="repertoire-form" data-repertoire-form>
         <?= Csrf::field() ?>
         <div class="list-group mb-4">

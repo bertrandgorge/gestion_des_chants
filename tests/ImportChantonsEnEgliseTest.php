@@ -99,6 +99,24 @@ final class ImportChantonsEnEgliseTest extends TestCase
         $this->assertStringNotContainsString('<br', $data['chant']);
     }
 
+    public function testTypeVientDeLaCoteQuandLaCategorieEstMuette(): void
+    {
+        // Catégorie du site non identifiable, mais la cote SECLI « T… » = envoi (issue #11).
+        $corps = '
+            <div>Auteur : X</div>
+            <div>Cote Secli : T 282</div>
+            <div class="mt-3">Temps ordinaire</div>';
+        $data = Site::parseVoirTexte($this->voirTexte(
+            'Un chant de sortie',
+            $corps,
+            "Des paroles assez longues pour passer le filtre de longueur minimale."
+        ));
+
+        $this->assertNotNull($data);
+        $this->assertSame('T 282', $data['code']);
+        $this->assertSame('envoi', $data['type']);
+    }
+
     public function testFormatParolesRefrainEtCouplets(): void
     {
         // Format « site » : marqueurs sur des lignes isolées, pas de ligne vide.

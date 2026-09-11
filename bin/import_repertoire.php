@@ -56,6 +56,7 @@ declare(strict_types=1);
 
 use App\Database;
 use App\Import\Paroles;
+use App\Import\Secli;
 use App\Import\TypeLiturgique;
 use App\Models\Chant;
 use App\Models\RepertoireChant;
@@ -347,13 +348,18 @@ function reconstruire(bool $dryRun, callable $log): void
 /** @param array<string,mixed> $j */
 function ligneDepuisJournal(array $j, string $chantFormatte): array
 {
+    // La cote SECLI (fiable) l'emporte sur le type journalisé depuis le libellé
+    // du site (issue #11).
+    $type = Secli::type((string) ($j['code'] ?? ''))
+        ?: (string) ($j['type'] ?: TypeLiturgique::DEFAUT);
+
     return [
         'titre'           => (string) $j['titre'],
         'code'            => $j['code'],
         'code_repertoire' => $j['code_repertoire'],
         'auteur'          => $j['auteur'],
-        'type'            => (string) ($j['type'] ?: TypeLiturgique::DEFAUT),
-        'nom'             => (string) ($j['nom'] ?: 'Chant'),
+        'type'            => $type,
+        'nom'             => (string) ($j['nom'] ?: (\App\SectionTypes::nomDefaut($type) ?? 'Chant')),
         'chant'           => $chantFormatte,
         'nb_couplets'     => count_couplets($chantFormatte, false),
     ];
@@ -362,8 +368,15 @@ function ligneDepuisJournal(array $j, string $chantFormatte): array
 /** @param array<string,mixed> $j */
 function motCleDepuisJournal(string $source, array $j): ?string
 {
+    $parts = [];
     // La catégorie brute de chantonseneglise n'est pas fiable comme mot-clé.
-    return $source !== SOURCE_CHANTONSENEGLISE && (string) ($j['categorie'] ?? '') !== ''
-        ? (string) $j['categorie']
-        : null;
+    if ($source !== SOURCE_CHANTONSENEGLISE && (string) ($j['categorie'] ?? '') !== '') {
+        $parts[] = (string) $j['categorie'];
+    }
+    // Temps liturgique déduit de la cote SECLI — fiable, toutes sources (issue #11).
+    foreach (Secli::themes((string) ($j['code'] ?? '')) as $temps) {
+        $parts[] = $temps;
+    }
+
+    return RepertoireChant::fusionnerListe('', implode(', ', $parts)) ?: null;
 }

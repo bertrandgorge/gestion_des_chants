@@ -9,15 +9,58 @@ use App\Database;
 final class Chant
 {
     /** Colonnes recopiées d'une section à l'autre (duplication de feuille). */
-    public const FIELDS = ['titre', 'code', 'auteur', 'chant', 'nb_couplets', 'introduction', 'contenu', 'acclamation', 'reference', 'url', 'repertoire_id'];
+    public const FIELDS = ['titre', 'chant', 'nb_couplets', 'introduction', 'contenu', 'acclamation', 'reference', 'repertoire_id'];
 
-    /** @return array<int,array<string,mixed>> */
+    /**
+     * Sections d'une feuille. Le code (cote Secli…), l'auteur et les URL de
+     * partition ne sont plus portés par la section : on les expose depuis la
+     * fiche du répertoire liée — repertoire_code / repertoire_auteur, et
+     * repertoire_urls (URL d'import distinctes, séparées par « \n ») — pour
+     * l'affichage (résumé de feuille, liens de partition sur la feuille…).
+     *
+     * @return array<int,array<string,mixed>>
+     */
     public static function forFeuille(int $feuilleId): array
     {
         return Database::all(
-            'SELECT * FROM chants WHERE feuille_id = ? ORDER BY position ASC, id ASC',
+            "SELECT ch.*, r.code AS repertoire_code, r.auteur AS repertoire_auteur,
+                    (SELECT GROUP_CONCAT(DISTINCT j.url ORDER BY j.url SEPARATOR '\n')
+                     FROM import_journal j
+                     WHERE j.chant_id = ch.repertoire_id AND j.url IS NOT NULL AND j.url <> '') AS repertoire_urls
+             FROM chants ch
+             LEFT JOIN repertoire_chants r ON r.id = ch.repertoire_id
+             WHERE ch.feuille_id = ? ORDER BY ch.position ASC, ch.id ASC",
             [$feuilleId]
         );
+    }
+
+    /**
+     * URL de partition d'une section, dans l'ordre d'affichage. Repose sur la
+     * colonne calculée repertoire_urls quand elle est présente (voir
+     * forFeuille()), sinon interroge le répertoire.
+     *
+     * @param array<string,mixed> $section
+     * @return list<string>
+     */
+    public static function partitions(array $section): array
+    {
+        if (array_key_exists('repertoire_urls', $section)) {
+            $brut = (string) ($section['repertoire_urls'] ?? '');
+
+            return $brut === '' ? [] : array_values(array_unique(explode("\n", $brut)));
+        }
+        if (empty($section['repertoire_id'])) {
+            return [];
+        }
+
+        $urls = [];
+        foreach (RepertoireChant::urls((int) $section['repertoire_id']) as $source) {
+            if (!empty($source['url'])) {
+                $urls[(string) $source['url']] = true;
+            }
+        }
+
+        return array_keys($urls);
     }
 
     public static function find(int $id): ?array
@@ -192,22 +235,24 @@ final class Chant
      * « url »/« repertoire_id »/« source_label » (provenance : « Répertoire » ou
      * « Feuille du … ») ne sont exposés qu'ici, pour l'interface chantre.
      *
-     * Recherche multi-mots : chaque mot doit apparaître dans au moins un des
-     * champs titre / code / auteur / source (URL), tous les mots étant requis.
-     * $texte étend la recherche aux paroles du chant.
+     * Recherche multi-mots : côté historique paroissial, chaque mot doit
+     * apparaître dans le titre (code / auteur ne sont plus portés par la
+     * section) ; côté répertoire, dans titre / code / auteur / mots-clés /
+     * source (URL). Tous les mots sont requis. $texte étend la recherche aux
+     * paroles du chant.
      *
      * @return array<int,array<string,mixed>>
      */
     public static function historique(int $paroisseId, string $q, ?string $type = null, ?int $excludeFeuilleId = null, bool $texte = false): array
     {
-        $templatesHistorique = ['ch.titre LIKE ?', 'ch.code LIKE ?', 'ch.auteur LIKE ?', 'ch.url LIKE ?'];
+        $templatesHistorique = ['ch.titre LIKE ?'];
         if ($texte) {
             $templatesHistorique[] = 'ch.chant LIKE ?';
         }
         [$ouHistorique, $paramsHistorique] = Database::likeMots($q, $templatesHistorique);
 
         $historique = Database::all(
-            "SELECT ch.titre, ch.code, ch.auteur, ch.chant, ch.nb_couplets, ch.type, ch.feuille_id, ch.url,
+            "SELECT ch.titre, ch.chant, ch.nb_couplets, ch.type, ch.feuille_id,
                     f.date_heure AS feuille_date
              FROM chants ch
              JOIN feuilles_chant f ON f.id = ch.feuille_id
@@ -260,8 +305,8 @@ final class Chant
             if (!isset($groups[$key]) || $couplets > $groups[$key]['_couplets']) {
                 $groups[$key] = [
                     'titre'         => $row['titre'],
-                    'code'          => $row['code'],
-                    'auteur'        => $row['auteur'],
+                    'code'          => $row['code'] ?? null,
+                    'auteur'        => $row['auteur'] ?? null,
                     'chant'         => $row['chant'],
                     'feuille_id'    => isset($row['feuille_id']) ? (int) $row['feuille_id'] : null,
                     'feuille_date'  => $row['feuille_date'] ?? null,
@@ -300,6 +345,89 @@ final class Chant
         }
 
         return array_slice($result, 0, 20);
+    }
+
+    /**
+     * Chants déjà utilisés dans la paroisse, pour la section $type, sur des
+     * messes passées qui partageaient au moins une des lectures (1re/2e lecture,
+     * psaume, évangile) de la feuille $feuilleId. Sert d'aide au choix dans
+     * l'édition d'une section (App\Controllers\ChantController::editSection).
+     *
+     * Les lectures se rejouant sur un cycle de trois ans, deux messes qui ont la
+     * même référence de lecture traitent des mêmes textes : les chants retenus
+     * alors sont de bons candidats. Regroupé par chant (repertoire_id, repli sur
+     * la clé de dédoublonnage), version la plus récente d'abord.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public static function pourMemesLectures(int $feuilleId, string $type, int $paroisseId, int $limit = 8): array
+    {
+        $lectures = ['premiere_lecture', 'deuxieme_lecture', 'psaume', 'evangile'];
+        $in = implode(',', array_fill(0, count($lectures), '?'));
+
+        $refs = Database::all(
+            "SELECT reference FROM chants
+             WHERE feuille_id = ? AND type IN ($in)
+               AND reference IS NOT NULL AND TRIM(reference) <> ''",
+            [$feuilleId, ...$lectures]
+        );
+        $refs = array_values(array_unique(array_map(
+            static fn ($r) => trim((string) $r['reference']),
+            $refs
+        )));
+        if ($refs === []) {
+            return [];
+        }
+        $inRefs = implode(',', array_fill(0, count($refs), '?'));
+
+        $rows = Database::all(
+            "SELECT ch.id, ch.titre, ch.chant, ch.nb_couplets, ch.repertoire_id,
+                    r.code, r.auteur, r.ordinaire,
+                    f.date_heure AS feuille_date, c.nom AS clocher_nom
+             FROM chants ch
+             JOIN feuilles_chant f ON f.id = ch.feuille_id
+             JOIN clochers c ON c.id = f.clocher_id
+             LEFT JOIN repertoire_chants r ON r.id = ch.repertoire_id
+             WHERE c.paroisse_id = ?
+               AND ch.type = ?
+               AND f.id <> ?
+               AND f.date_heure < (NOW() - INTERVAL 6 HOUR)
+               AND (TRIM(COALESCE(ch.titre, '')) <> '' OR TRIM(COALESCE(ch.chant, '')) <> '')
+               AND EXISTS (
+                   SELECT 1 FROM chants lect
+                   WHERE lect.feuille_id = f.id
+                     AND lect.type IN ($in)
+                     AND TRIM(lect.reference) IN ($inRefs)
+               )
+             ORDER BY f.date_heure DESC
+             LIMIT 100",
+            [$paroisseId, $type, $feuilleId, ...$lectures, ...$refs]
+        );
+
+        $groups = [];
+        foreach ($rows as $row) {
+            $key = $row['repertoire_id'] !== null
+                ? 'r' . (int) $row['repertoire_id']
+                : self::cleDedup((string) $row['titre'], (string) $row['chant']);
+            if (isset($groups[$key])) {
+                continue; // déjà pris (ligne plus récente, tri DESC)
+            }
+            $groups[$key] = [
+                'titre'         => $row['titre'],
+                'code'          => $row['code'],
+                'auteur'        => $row['auteur'],
+                'chant'         => $row['chant'],
+                'repertoire_id' => $row['repertoire_id'] !== null ? (int) $row['repertoire_id'] : null,
+                'ordinaire'     => $row['ordinaire'],
+                'feuille_date'  => $row['feuille_date'],
+                'clocher_nom'   => $row['clocher_nom'],
+            ];
+            if (count($groups) >= $limit) {
+                break;
+            }
+        }
+
+        return array_values($groups);
     }
 
     /** Date au format court « 12 sept. 2026 » (étiquette de provenance dans la recherche). */

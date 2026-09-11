@@ -15,6 +15,8 @@
     <?php require APP_ROOT . '/views/public/_section.php'; ?>
 <?php endforeach; ?>
 
-<footer class="feuille-footer text-body-secondary">
-    <a href="/<?= e($paroisse['slug']) ?>/<?= e($feuille['clocher_slug']) ?>">Autres feuilles de ce clocher</a>
-</footer>
+<?php if (empty($feuille['clocher_ad_hoc'])): ?>
+    <footer class="feuille-footer text-body-secondary">
+        <a href="/<?= e($paroisse['slug']) ?>/<?= e($feuille['clocher_slug']) ?>">Autres feuilles de ce clocher</a>
+    </footer>
+<?php endif; ?>

@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Database;
 use App\Import\Paroles;
 use App\Import\TypeLiturgique;
+use App\SectionTypes;
 
 /**
  * Répertoire partagé de chants (dédoublonné, éditable), alimenté par les
@@ -29,34 +30,85 @@ final class RepertoireChant
 {
     /**
      * Recherche multi-mots : chaque mot doit apparaître dans au moins un des
-     * champs titre / code / auteur / mots-clés / source (URL d'import), tous
-     * les mots étant requis. $texte étend la recherche aux paroles du chant.
+     * champs titre / code / auteur / mots-clés / type (nom affiché ou slug) /
+     * source (URL d'import), tous les mots étant requis. $texte étend la
+     * recherche aux paroles du chant. $type filtre en plus sur le type exact
+     * (slug App\SectionTypes) — voir le tag cliquable de RepertoireController::index().
      *
      * @return array<int,array<string,mixed>>
      */
-    public static function all(string $q = '', bool $texte = false): array
+    public static function all(string $q = '', bool $texte = false, ?string $type = null): array
     {
-        if ($q === '') {
-            return Database::all('SELECT * FROM repertoire_chants ORDER BY titre ASC LIMIT 500');
+        $where = [];
+        $params = [];
+
+        if ($type !== null && $type !== '') {
+            $where[] = 'type = ?';
+            $params[] = $type;
+        }
+        if ($q !== '') {
+            [$clause, $paramsQ] = Database::likeMots($q, self::templatesRecherche($texte));
+            $where[] = $clause;
+            array_push($params, ...$paramsQ);
         }
 
+        $sql = 'SELECT * FROM repertoire_chants';
+        if ($where !== []) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+        $sql .= ' ORDER BY titre ASC LIMIT 500';
+
+        return Database::all($sql, $params);
+    }
+
+    /**
+     * Nombre de fiches par type, pour la liste de tags cliquables de la
+     * recherche du répertoire (issue #17) — restreint à la recherche texte $q
+     * en cours le cas échéant (comme all()), mais jamais au type déjà
+     * sélectionné : chaque tag garde son propre compte pour rester cliquable
+     * (permet de changer de tag sans repasser par « tous »).
+     *
+     * @return list<array{type:string,nom:string,n:int}>
+     */
+    public static function typesAvecComptage(string $q = '', bool $texte = false): array
+    {
+        $sql = 'SELECT type, COUNT(*) AS n FROM repertoire_chants';
+        $params = [];
+
+        if ($q !== '') {
+            [$where, $params] = Database::likeMots($q, self::templatesRecherche($texte));
+            $sql .= " WHERE $where";
+        }
+        $sql .= ' GROUP BY type ORDER BY n DESC';
+
+        return array_map(
+            static fn (array $r) => [
+                'type' => (string) $r['type'],
+                'nom'  => SectionTypes::libelle((string) $r['type']),
+                'n'    => (int) $r['n'],
+            ],
+            Database::all($sql, $params)
+        );
+    }
+
+    /** Gabarits LIKE communs à all() et typesAvecComptage() (voir Database::likeMots). */
+    private static function templatesRecherche(bool $texte): array
+    {
         $templates = [
             'titre LIKE ?',
             'code LIKE ?',
             'auteur LIKE ?',
             'mots_cles LIKE ?',
             'ordinaire LIKE ?',
+            'nom LIKE ?',
+            'type LIKE ?',
             'EXISTS (SELECT 1 FROM import_journal j WHERE j.chant_id = repertoire_chants.id AND j.url LIKE ?)',
         ];
         if ($texte) {
             $templates[] = 'chant LIKE ?';
         }
-        [$where, $params] = Database::likeMots($q, $templates);
 
-        return Database::all(
-            "SELECT * FROM repertoire_chants WHERE $where ORDER BY titre ASC LIMIT 500",
-            $params
-        );
+        return $templates;
     }
 
     public static function find(int $id): ?array

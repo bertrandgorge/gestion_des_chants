@@ -16,6 +16,17 @@ final class FeuilleService
     /** Types de sections dont le contenu provient d'AELF. */
     private const SECTIONS_AELF = ['premiere_lecture', 'deuxieme_lecture', 'psaume', 'evangile'];
 
+    /**
+     * Un psaume remplacé par un chant du répertoire (issue #3) : on ne le
+     * réécrase plus depuis AELF (copie / resync), on tient juste sa référence
+     * de lecture à jour. Un psaume resté « responsorial » (sans repertoire_id)
+     * suit AELF comme les lectures.
+     */
+    private static function psaumeLibre(array $section): bool
+    {
+        return ($section['type'] ?? '') === 'psaume' && !empty($section['repertoire_id']);
+    }
+
     /** Crée une feuille vierge : sections par défaut + snapshot AELF. */
     public static function creer(int $chantreId, int $clocherId, DateTimeImmutable $dateHeure): int
     {
@@ -80,11 +91,18 @@ final class FeuilleService
                     'position'   => $section['position'],
                 ];
 
-                if (in_array($section['type'], self::SECTIONS_AELF, true)) {
+                if (in_array($section['type'], self::SECTIONS_AELF, true) && !self::psaumeLibre($section)) {
                     $data += self::donneesAelfPour($section['type'], $aelf['sections']);
                 } else {
                     foreach (Chant::FIELDS as $f) {
                         $data[$f] = $section[$f];
+                    }
+                    // Psaume chanté : garder le chant mais rafraîchir la référence.
+                    if (self::psaumeLibre($section)) {
+                        $ref = $aelf['sections']['psaume']['reference'] ?? '';
+                        if ($ref !== '') {
+                            $data['reference'] = $ref;
+                        }
                     }
                 }
                 Chant::create($data);
@@ -114,6 +132,15 @@ final class FeuilleService
             ]);
 
             foreach (Chant::forFeuille((int) $feuille['id']) as $section) {
+                // Psaume remplacé par un chant : on ne réécrase pas le chant,
+                // juste sa référence de lecture.
+                if (self::psaumeLibre($section)) {
+                    $ref = $aelf['sections']['psaume']['reference'] ?? '';
+                    if ($ref !== '' && $ref !== (string) $section['reference']) {
+                        Chant::update((int) $section['id'], ['reference' => $ref]);
+                    }
+                    continue;
+                }
                 if (!in_array($section['type'], self::SECTIONS_AELF, true)) {
                     continue;
                 }

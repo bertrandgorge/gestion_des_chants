@@ -7,7 +7,7 @@ $bsTheme = $theme === 'sombre' ? 'dark' : ($theme === 'clair' ? 'light' : null);
 $chantLiens = $chantLiens ?? false;
 $hasChantLiens = false;
 foreach (($sections ?? []) as $s) {
-    if (!empty($s['url'])) { $hasChantLiens = true; break; }
+    if (\App\Models\Chant::partitions($s) !== []) { $hasChantLiens = true; break; }
 }
 ?>
 <!doctype html>

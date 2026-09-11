@@ -1,9 +1,9 @@
 <?php
 
-/** @var array $chant @var array $urls @var array $memeTitre @var array $memeOrdinaire @var array<string,string> $types @var string $retourQ @var bool $retourTexte @var array $stats */
+/** @var array $chant @var array $urls @var array $memeTitre @var array $memeOrdinaire @var array<string,string> $types @var string $retourQ @var bool $retourTexte @var string $retourType @var array $stats */
 use App\Csrf;
 
-$retour = '/app/repertoire' . query_suffix(['q' => $retourQ, 'texte' => $retourTexte ? '1' : '']);
+$retour = '/app/repertoire' . query_suffix(['q' => $retourQ, 'texte' => $retourTexte ? '1' : '', 'type' => $retourType]);
 ?>
 <div class="mb-3"><a href="<?= e($retour) ?>" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Retour au répertoire</a></div>
 
@@ -13,6 +13,7 @@ $retour = '/app/repertoire' . query_suffix(['q' => $retourQ, 'texte' => $retourT
     <?= Csrf::field() ?>
     <input type="hidden" name="retour_q" value="<?= e($retourQ) ?>">
     <input type="hidden" name="retour_texte" value="<?= $retourTexte ? '1' : '' ?>">
+    <input type="hidden" name="retour_type" value="<?= e($retourType) ?>">
     <!-- Fiche courante : première moitié de la paire fusionnée par les boutons « Fusionner » ci-dessous. -->
     <input type="hidden" name="ids[]" value="<?= $chant['id'] ?>">
 
@@ -38,10 +39,6 @@ $retour = '/app/repertoire' . query_suffix(['q' => $retourQ, 'texte' => $retourT
                 <?php endforeach; ?>
             </select>
         </div>
-    </div>
-    <div>
-        <label class="form-label" for="nom">Libellé (repris comme nom de section)</label>
-        <input type="text" class="form-control" id="nom" name="nom" value="<?= e($chant['nom']) ?>">
     </div>
     <div>
         <label class="form-label" for="ordinaire">Ordinaire de messe</label>

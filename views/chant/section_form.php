@@ -1,14 +1,17 @@
 <?php
 
-/** @var array $section @var array $feuille @var string $comportement @var ?array $stats @var array $urls */
+/** @var array $section @var array $feuille @var string $comportement @var ?array $stats @var array $urls @var ?array $ficheRepertoire */
 use App\Csrf;
 use App\SectionTypes;
 
 $retour = '/app/feuilles/' . $section['feuille_id'];
-$estChant = in_array($comportement, ['chant', 'ordinaire'], true);
+// Le psaume s'édite comme un chant (recherche, répertoire…) tout en gardant sa
+// référence de lecture — il peut être lu ou remplacé par un chant (issue #3).
+$estPsaume = $comportement === 'psaume';
+$estChant = in_array($comportement, ['chant', 'ordinaire', 'psaume'], true);
 $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
 ?>
-<div class="mb-3"><a href="<?= e($retour) ?>" class="small text-decoration-none" data-save-return><i class="bi bi-arrow-left"></i> Retour à la feuille</a></div>
+<div class="mb-3"><a href="<?= e($retour) ?>" class="small text-decoration-none" data-quitter-editeur><i class="bi bi-arrow-left"></i> Retour à la feuille</a></div>
 
 <h1 class="h4 mb-1"><?= e($section['nom']) ?></h1>
 <p class="text-body-secondary small">
@@ -25,50 +28,66 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
     <?= Csrf::field() ?>
 
     <?php if ($estChant): ?>
+        <?php if ($estPsaume): ?>
+            <div>
+                <label class="form-label" for="reference">Référence de la lecture</label>
+                <input type="text" class="form-control" id="reference" name="reference" value="<?= e($section['reference']) ?>" placeholder="Ps 94 (95)">
+                <div class="form-text">Conservée même si le psaume est remplacé par un chant.</div>
+            </div>
+        <?php endif; ?>
         <div class="position-relative">
             <label class="form-label" for="titre">Titre</label>
-            <input type="text" class="form-control" id="titre" name="titre" value="<?= e($section['titre']) ?>" autocomplete="off" data-search-field>
+            <input type="text" class="form-control" id="titre" name="titre" value="<?= e($section['titre']) ?>" autocomplete="off">
             <div class="form-check mt-1">
                 <input class="form-check-input" type="checkbox" id="chercher-texte" data-search-text>
                 <label class="form-check-label small" for="chercher-texte">Chercher aussi dans le texte des chants</label>
             </div>
             <div class="autocomplete-panel list-group shadow-sm" data-suggestions hidden></div>
         </div>
-        <div class="row g-2">
-            <div class="col-sm-6">
-                <label class="form-label" for="code">Code</label>
-                <input type="text" class="form-control" id="code" name="code" value="<?= e($section['code']) ?>" autocomplete="off" data-search-field>
-            </div>
-            <div class="col-sm-6">
-                <label class="form-label" for="auteur">Auteur</label>
-                <input type="text" class="form-control" id="auteur" name="auteur" value="<?= e($section['auteur']) ?>">
-            </div>
-        </div>
-        <input type="hidden" name="url" value="<?= e($section['url'] ?? '') ?>" data-url-field>
-        <div class="form-text<?= empty($section['url']) || count($urls ?? []) > 1 ? ' d-none' : '' ?>" data-url-display>
-            <i class="bi bi-link-45deg"></i>
-            <a href="<?= e($section['url'] ?? '') ?>" target="_blank" rel="noopener noreferrer" data-url-link><?= e($section['url'] ?? '') ?></a>
-        </div>
-        <?php if (count($urls ?? []) > 1): ?>
-            <div class="form-text">
-                <i class="bi bi-link-45deg"></i> Trouvé sur plusieurs sources :
-                <ul class="small mb-0 ps-3">
-                    <?php foreach ($urls as $u): ?>
-                        <li>
-                            <?= e($u['source']) ?>
-                            <?php if ($u['url']): ?>
-                                — <a href="<?= e($u['url']) ?>" target="_blank" rel="noopener noreferrer"><?= e($u['url']) ?></a>
-                            <?php else: ?>
-                                <span class="text-body-secondary">(pas d'URL)</span>
-                            <?php endif; ?>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
-        <?php endif; ?>
+        <?php
+        // Code (cote Secli…), auteur et URL de partition ne sont plus portés par
+        // la section (issue #14) : ils viennent de la fiche du répertoire liée et
+        // s'affichent dans l'encadré en lecture seule ci-dessous.
+        $fr = $ficheRepertoire ?? null;
+        $frHote = static fn (string $url): string => (string) preg_replace(
+            '/^www\./',
+            '',
+            parse_url($url, PHP_URL_HOST) ?: $url
+        );
+        $frPartitions = [];
+        foreach ($urls ?? [] as $u) {
+            if (!empty($u['url'])) {
+                $frPartitions[$u['url']] = $frHote((string) $u['url']);
+            }
+        }
+        ?>
         <input type="hidden" name="repertoire_id" value="<?= e((string) ($section['repertoire_id'] ?? '')) ?>" data-repertoire-field>
+
+        <div class="border rounded p-3 small bg-body-tertiary" data-fiche-repertoire<?= $fr ? '' : ' hidden' ?>>
+            <div class="fw-semibold">
+                <i class="bi bi-journal-bookmark"></i> <span data-fr-titre><?= e((string) ($fr['titre'] ?? '')) ?></span>
+            </div>
+            <div class="text-body-secondary" data-fr-meta>
+                <span data-fr-code<?= !empty($fr['code']) ? '' : ' hidden' ?>><?= e((string) ($fr['code'] ?? '')) ?></span>
+                <span data-fr-sep<?= !empty($fr['code']) && !empty($fr['auteur']) ? '' : ' hidden' ?>> · </span>
+                <span data-fr-auteur<?= !empty($fr['auteur']) ? '' : ' hidden' ?>><?= e((string) ($fr['auteur'] ?? '')) ?></span>
+            </div>
+            <div class="mt-1" data-fr-partitions<?= $frPartitions !== [] ? '' : ' hidden' ?>>
+                <i class="bi bi-link-45deg"></i>
+                <span data-fr-partitions-label>Partition<?= count($frPartitions) > 1 ? 's' : '' ?></span> :
+                <span data-fr-partitions-liste><?php $i = 0;
+                foreach ($frPartitions as $purl => $phote): echo $i++ ? ', ' : ''; ?><a href="<?= e($purl) ?>" target="_blank" rel="noopener noreferrer"><?= e($phote) ?></a><?php endforeach; ?></span>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-2">
+                <a class="btn btn-sm btn-outline-secondary" data-fr-ouvrir target="_blank" rel="noopener noreferrer"
+                   href="/app/repertoire/<?= (int) ($fr['id'] ?? 0) ?>"><i class="bi bi-box-arrow-up-right"></i> Ouvrir dans le répertoire</a>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-fr-recharger>
+                    <i class="bi bi-arrow-clockwise"></i> Recharger le chant depuis le répertoire
+                </button>
+            </div>
+        </div>
         <div>
-            <label class="form-label" for="chant">Texte du chant</label>
+            <label class="form-label" for="chant"><?= $estPsaume ? 'Texte du psaume ou du chant' : 'Texte du chant' ?></label>
             <textarea class="form-control font-monospace" id="chant" name="chant" rows="12" data-chant-input><?= e($section['chant']) ?></textarea>
             <div class="form-text">Séparez couplets et refrains par une ligne vide. Un bloc commençant par « R/ » ou « R. » est un refrain (affiché en gras).</div>
         </div>
@@ -94,25 +113,6 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
             <label class="form-label" for="contenu">Contenu</label>
             <textarea class="form-control font-monospace" id="contenu" name="contenu" rows="14"><?= e($section['contenu']) ?></textarea>
             <div class="form-text">Contenu HTML issu d'AELF.</div>
-        </div>
-
-    <?php elseif ($comportement === 'psaume'): ?>
-        <div>
-            <label class="form-label" for="titre">Titre</label>
-            <input type="text" class="form-control" id="titre" name="titre" value="<?= e($section['titre']) ?>">
-        </div>
-        <div>
-            <label class="form-label" for="reference">Référence</label>
-            <input type="text" class="form-control" id="reference" name="reference" value="<?= e($section['reference']) ?>" placeholder="Ps 94 (95)">
-        </div>
-        <div>
-            <label class="form-label" for="chant">Texte du psaume</label>
-            <textarea class="form-control font-monospace" id="chant" name="chant" rows="12" data-chant-input><?= e($section['chant']) ?></textarea>
-            <div class="form-text">Refrain préfixé par « R/ », strophes séparées par une ligne vide.</div>
-        </div>
-        <div>
-            <div class="form-label">Aperçu</div>
-            <div class="chant-preview border rounded p-3" data-chant-preview><?= render_chant($section['chant']) ?></div>
         </div>
 
     <?php elseif ($comportement === 'evangile'): ?>
@@ -151,28 +151,40 @@ $apercuParoissien = in_array($comportement, ['lecture', 'evangile'], true);
     <div class="d-flex flex-column flex-sm-row gap-2 justify-content-sm-between">
         <div class="d-flex flex-wrap gap-2 order-last order-sm-first">
             <?php if ($estChant): ?>
+                <?php
+                $aRepertoire = !empty($section['repertoire_id']);
+                $chantRempli = trim((string) $section['titre']) !== '' && trim((string) $section['chant']) !== '';
+                ?>
                 <button type="button" class="btn btn-outline-secondary" data-clear-chant>Vider</button>
-            <?php endif; ?>
-            <?php if ($estChant && !empty($section['repertoire_id'])): ?>
-                <a class="btn btn-outline-secondary" href="/app/repertoire/<?= (int) $section['repertoire_id'] ?>" target="_blank" rel="noopener noreferrer">
-                    <i class="bi bi-journal-bookmark"></i> Ouvrir dans le répertoire
-                </a>
-            <?php endif; ?>
-            <?php if ($estChant && empty($section['repertoire_id']) && trim((string) $section['titre']) !== '' && trim((string) $section['chant']) !== ''): ?>
-                <!-- Même formulaire que « Enregistrer » (un <form> imbriqué serait invalide en
-                     HTML et casserait les deux) : on redirige juste sa soumission via formaction. -->
-                <button type="submit" class="btn btn-outline-secondary" formnovalidate
-                        formaction="/app/sections/<?= $section['id'] ?>/ajouter-repertoire">
+                <!-- Ces boutons sont tenus à jour par le JS dès qu'on choisit / vide un chant,
+                     sans attendre l'enregistrement. Ils partagent le <form> principal et le
+                     redirigent via formaction (un <form> imbriqué serait invalide en HTML). -->
+                <button type="submit" class="btn btn-outline-secondary" formnovalidate data-ajouter-repertoire
+                        formaction="/app/sections/<?= $section['id'] ?>/ajouter-repertoire"
+                        <?= !$aRepertoire && $chantRempli ? '' : 'hidden' ?>>
                     <i class="bi bi-journal-plus"></i> Ajouter au répertoire
+                </button>
+                <button type="submit" class="btn btn-outline-secondary" formnovalidate data-maj-repertoire
+                        formaction="/app/sections/<?= $section['id'] ?>/mettre-a-jour-repertoire"
+                        <?= $aRepertoire ? '' : 'hidden' ?>>
+                    <i class="bi bi-journal-arrow-up"></i> Mettre à jour le répertoire
                 </button>
             <?php endif; ?>
         </div>
         <div class="d-flex gap-2">
-            <a class="btn btn-outline-secondary flex-fill" href="<?= e($retour) ?>">Annuler</a>
+            <a class="btn btn-outline-secondary flex-fill" href="<?= e($retour) ?>" data-quitter-editeur>Annuler</a>
             <button class="btn btn-primary flex-fill">Enregistrer</button>
         </div>
     </div>
 </form>
+
+<?php if ($estChant): ?>
+    <?= view('chant/_suggestions', [
+        'section'  => $section,
+        'lectures' => $lectures ?? [],
+        'externe'  => $comportement === 'chant',
+    ]) ?>
+<?php endif; ?>
 
 <?php if ($stats !== null): ?>
     <?= view('partials/stats_chant', $stats) ?>

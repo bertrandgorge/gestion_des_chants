@@ -12,10 +12,29 @@
         });
     }
 
+    // « - Autres - » : révèle le champ « nom du lieu » et le rend obligatoire.
+    function bindLieuLibre(select, container) {
+        if (!select || !container) return;
+        var bloc = container.querySelector('[data-lieu-libre]');
+        if (!bloc) return;
+        var input = bloc.querySelector('input[name="lieu"]');
+        var sync = function () {
+            var autre = select.value === 'autre';
+            bloc.hidden = !autre;
+            if (input) {
+                input.required = autre;
+                if (!autre) input.value = '';
+            }
+        };
+        select.addEventListener('change', sync);
+        sync();
+    }
+
     var feuilleForm = document.querySelector('[data-feuille-form]');
     if (feuilleForm) {
-        bindClocherDefault(feuilleForm.querySelector('select[name="clocher_id"]'),
-            feuilleForm.querySelector('input[name="date_heure"]'));
+        var feuilleSelect = feuilleForm.querySelector('select[name="clocher_id"]');
+        bindClocherDefault(feuilleSelect, feuilleForm.querySelector('input[name="date_heure"]'));
+        bindLieuLibre(feuilleSelect, feuilleForm);
     }
 
     // --- Modale de copie --------------------------------------------------
@@ -26,6 +45,7 @@
         var clocherSel = copieModalEl.querySelector('#copie_clocher');
         var dateInput = copieModalEl.querySelector('#copie_date');
         bindClocherDefault(clocherSel, dateInput);
+        bindLieuLibre(clocherSel, copieModalEl);
 
         document.querySelectorAll('[data-copie]').forEach(function (btn) {
             btn.addEventListener('click', function () {

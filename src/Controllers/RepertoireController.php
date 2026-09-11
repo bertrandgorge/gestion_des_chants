@@ -17,11 +17,14 @@ final class RepertoireController
         Auth::requireLogin();
         $q = trim((string) ($_GET['q'] ?? ''));
         $texte = !empty($_GET['texte']);
+        $type = trim((string) ($_GET['type'] ?? ''));
 
         render('chantre', 'repertoire/index', [
-            'chants'  => RepertoireChant::all($q, $texte),
+            'chants'  => RepertoireChant::all($q, $texte, $type !== '' ? $type : null),
+            'tags'    => RepertoireChant::typesAvecComptage($q, $texte),
             'q'       => $q,
             'texte'   => $texte,
+            'type'    => $type,
             'titre'   => 'Répertoire',
             'section' => 'repertoire',
         ]);
@@ -41,6 +44,7 @@ final class RepertoireController
             'types'         => $this->typesDisponibles(),
             'retourQ'       => trim((string) ($_GET['q'] ?? '')),
             'retourTexte'   => !empty($_GET['texte']),
+            'retourType'    => trim((string) ($_GET['type'] ?? '')),
             'titre'         => $chant['titre'],
             'section'       => 'repertoire',
             'stats'         => [
@@ -78,12 +82,14 @@ final class RepertoireController
         }
 
         $type = (string) input('type', 'entree');
+        // « nom » (classement d'origine, badge dans le répertoire) n'est plus
+        // éditable ici : alimenté par l'import et par « Ajouter au répertoire »,
+        // on ne le touche pas à l'enregistrement d'une fiche.
         $data = [
             'titre'     => $titre,
             'code'      => $this->videEnNull((string) input('code', '')),
             'auteur'    => $this->videEnNull((string) input('auteur', '')),
             'type'      => array_key_exists($type, $this->typesDisponibles()) ? $type : 'entree',
-            'nom'       => $this->videEnNull((string) input('nom', '')),
             'ordinaire' => $this->videEnNull((string) input('ordinaire', '')),
             'chant'     => (string) ($_POST['chant'] ?? ''),
             'mots_cles' => $this->videEnNull((string) input('mots_cles', '')),
@@ -163,12 +169,12 @@ final class RepertoireController
         redirect('/app/repertoire/' . $survivant['id']);
     }
 
-    /** @return array<string,string> slug => libellé, types chant/ordinaire uniquement. */
+    /** @return array<string,string> slug => libellé, types utilisables comme chant. */
     private function typesDisponibles(): array
     {
         $types = [];
         foreach (SectionTypes::DEFAUT as $s) {
-            if (in_array(SectionTypes::comportement($s['type']), ['chant', 'ordinaire'], true)) {
+            if (in_array(SectionTypes::comportement($s['type']), ['chant', 'ordinaire', 'psaume'], true)) {
                 $types[$s['type']] = $s['nom'];
             }
         }
@@ -192,12 +198,13 @@ final class RepertoireController
         return $chant;
     }
 
-    /** Critères de recherche (q, texte) reçus en champs cachés du formulaire, pour revenir au répertoire filtré. */
+    /** Critères de recherche (q, texte, type) reçus en champs cachés du formulaire, pour revenir au répertoire filtré. */
     private function qsRetour(): string
     {
         return query_suffix([
             'q'     => trim((string) ($_POST['retour_q'] ?? '')),
             'texte' => !empty($_POST['retour_texte']) ? '1' : '',
+            'type'  => trim((string) ($_POST['retour_type'] ?? '')),
         ]);
     }
 

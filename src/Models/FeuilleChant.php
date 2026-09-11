@@ -9,6 +9,7 @@ use App\Database;
 final class FeuilleChant
 {
     private const SELECT = 'SELECT f.*, c.nom AS clocher_nom, c.slug AS clocher_slug,
+                                   c.ad_hoc AS clocher_ad_hoc,
                                    p.slug AS paroisse_slug, p.nom AS paroisse_nom,
                                    u.email AS chantre_email
                             FROM feuilles_chant f

@@ -1,30 +1,21 @@
 <?php
 
 /** @var array $s */
-use App\Models\RepertoireChant;
+use App\Models\Chant;
 use App\SectionTypes;
 
 $comportement = SectionTypes::comportement($s['type']);
-
-$partitionsUrls = [];
-if (!empty($s['repertoire_id'])) {
-    foreach (RepertoireChant::urls((int) $s['repertoire_id']) as $source) {
-        if (!empty($source['url'])) {
-            $partitionsUrls[$source['url']] = true;
-        }
-    }
-}
-if (!empty($s['url'])) {
-    $partitionsUrls[$s['url']] = true;
-}
-$partitionsUrls = array_keys($partitionsUrls);
+$partitionsUrls = Chant::partitions($s);
 ?>
 <section class="feuille-section">
     <h2 class="feuille-section-titre">
         <?= e($s['nom']) ?>
     </h2>
 
-    <?php if (in_array($comportement, ['chant', 'ordinaire'], true)): ?>
+    <?php if (in_array($comportement, ['chant', 'ordinaire', 'psaume'], true)): ?>
+        <?php if ($comportement === 'psaume' && $s['reference']): ?>
+            <p class="feuille-ref"><?= e($s['reference']) ?></p>
+        <?php endif; ?>
         <?php if ($partitionsUrls !== []): ?>
             <p class="feuille-chant-partitions">
                 Voir les partitions :
@@ -38,10 +29,6 @@ $partitionsUrls = array_keys($partitionsUrls);
                 ?>
             </p>
         <?php endif; ?>
-        <div class="feuille-chant-texte"><?= render_chant($s['chant']) ?></div>
-
-    <?php elseif ($comportement === 'psaume'): ?>
-        <?php if ($s['reference']): ?><p class="feuille-ref"><?= e($s['reference']) ?></p><?php endif; ?>
         <div class="feuille-chant-texte"><?= render_chant($s['chant']) ?></div>
 
     <?php elseif ($comportement === 'lecture'): ?>
