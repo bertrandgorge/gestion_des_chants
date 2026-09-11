@@ -17,11 +17,14 @@ final class RepertoireController
         Auth::requireLogin();
         $q = trim((string) ($_GET['q'] ?? ''));
         $texte = !empty($_GET['texte']);
+        $type = trim((string) ($_GET['type'] ?? ''));
 
         render('chantre', 'repertoire/index', [
-            'chants'  => RepertoireChant::all($q, $texte),
+            'chants'  => RepertoireChant::all($q, $texte, $type !== '' ? $type : null),
+            'tags'    => RepertoireChant::typesAvecComptage($q, $texte),
             'q'       => $q,
             'texte'   => $texte,
+            'type'    => $type,
             'titre'   => 'Répertoire',
             'section' => 'repertoire',
         ]);
@@ -41,6 +44,7 @@ final class RepertoireController
             'types'         => $this->typesDisponibles(),
             'retourQ'       => trim((string) ($_GET['q'] ?? '')),
             'retourTexte'   => !empty($_GET['texte']),
+            'retourType'    => trim((string) ($_GET['type'] ?? '')),
             'titre'         => $chant['titre'],
             'section'       => 'repertoire',
             'stats'         => [
@@ -194,12 +198,13 @@ final class RepertoireController
         return $chant;
     }
 
-    /** Critères de recherche (q, texte) reçus en champs cachés du formulaire, pour revenir au répertoire filtré. */
+    /** Critères de recherche (q, texte, type) reçus en champs cachés du formulaire, pour revenir au répertoire filtré. */
     private function qsRetour(): string
     {
         return query_suffix([
             'q'     => trim((string) ($_POST['retour_q'] ?? '')),
             'texte' => !empty($_POST['retour_texte']) ? '1' : '',
+            'type'  => trim((string) ($_POST['retour_type'] ?? '')),
         ]);
     }
 
