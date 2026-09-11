@@ -8,6 +8,9 @@ $semaineAnnee = trim(($f['annee'] ? 'Année ' . $f['annee'] : '') . ($f['semaine
         <div>
             <a class="fw-semibold text-decoration-none stretched-link" href="/app/feuilles/<?= $f['id'] ?>">
                 <?= e($f['clocher_nom']) ?> — <?= e(format_date_fr($f['date_heure'])) ?>
+                <?php if (!empty($f['clocher_ad_hoc'])): ?>
+                    <span class="badge text-bg-light border"><i class="bi bi-geo-alt"></i> lieu ponctuel</span>
+                <?php endif; ?>
             </a>
             <div class="small text-body-secondary">
                 <?= e($semaineAnnee ?: 'Informations liturgiques indisponibles') ?>

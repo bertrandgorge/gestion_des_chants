@@ -57,6 +57,7 @@ $router->get('/app/feuilles/{id}', [ChantController::class, 'editSheet']);
 $router->post('/app/feuilles/{id}/copier', [FeuilleController::class, 'copy']);
 $router->post('/app/feuilles/{id}/supprimer', [FeuilleController::class, 'delete']);
 $router->post('/app/feuilles/{id}/resync', [FeuilleController::class, 'resync']);
+$router->get('/app/feuilles/{id}/qrcode.svg', [FeuilleController::class, 'qrcode']);
 $router->post('/app/feuilles/{id}/imprimer', [ChantController::class, 'imprimer']);
 $router->post('/app/feuilles/{id}/sections', [ChantController::class, 'sections']);
 $router->get('/app/sections/{id}', [ChantController::class, 'editSection']);

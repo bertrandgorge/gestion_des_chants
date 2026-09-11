@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS clochers (
     paroisse_id  INT UNSIGNED NOT NULL,
     nom          VARCHAR(150) NOT NULL,
     slug         VARCHAR(100) NOT NULL,
+    ad_hoc       TINYINT UNSIGNED NOT NULL DEFAULT 0, -- 1 = lieu ponctuel créé pour une feuille (« - Autres - »), masqué des listes
     jour_defaut  TINYINT UNSIGNED DEFAULT NULL,   -- 1 = lundi ... 7 = dimanche (ISO-8601)
     heure_defaut TIME DEFAULT NULL,
     created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

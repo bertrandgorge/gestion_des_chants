@@ -18,7 +18,14 @@ use App\Csrf;
                 <?php foreach ($clochers as $c): ?>
                     <option value="<?= $c['id'] ?>" data-defaut="<?= e($defaults[$c['id']] ?? '') ?>"><?= e($c['nom']) ?></option>
                 <?php endforeach; ?>
+                <option value="autre">— Autre lieu —</option>
             </select>
+        </div>
+        <div data-lieu-libre hidden>
+            <label class="form-label" for="lieu">Nom du lieu</label>
+            <input type="text" class="form-control" id="lieu" name="lieu" maxlength="150"
+                   placeholder="ex. Chapelle du camp scout">
+            <div class="form-text">Une page publique et un QR code seront générés pour cette feuille.</div>
         </div>
         <div>
             <label class="form-label" for="date_heure">Date et heure de la messe</label>

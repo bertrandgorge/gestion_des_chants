@@ -43,6 +43,24 @@ $semaineAnnee = trim(($feuille['annee'] ? 'Année ' . $feuille['annee'] : '') . 
     </div>
 </div>
 
+<?php if (!empty($feuille['clocher_ad_hoc'])): $urlPublique = base_url(feuille_public_url($feuille)); ?>
+    <div class="card card-body mb-4">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <img src="/app/feuilles/<?= $feuille['id'] ?>/qrcode.svg" alt="QR code de la feuille"
+                 width="120" height="120" style="background:#fff;padding:4px;border-radius:6px">
+            <div class="small">
+                <div class="fw-semibold"><i class="bi bi-qr-code"></i> QR code de cette feuille</div>
+                <div class="text-body-secondary mb-1">Lieu ponctuel : ce QR renvoie directement vers la feuille.</div>
+                <code class="user-select-all"><?= e($urlPublique) ?></code>
+                <div class="mt-2">
+                    <a class="btn btn-sm btn-outline-primary" href="/app/feuilles/<?= $feuille['id'] ?>/qrcode.svg"
+                       download="qrcode-<?= e($feuille['clocher_slug']) ?>.svg">Télécharger le QR code</a>
+                </div>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
 <?php require APP_ROOT . '/views/feuilles/_copie_modal.php'; ?>
 <?php require APP_ROOT . '/views/feuilles/_impression_modal.php'; ?>
 

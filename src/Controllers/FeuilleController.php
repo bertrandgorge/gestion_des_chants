@@ -9,6 +9,8 @@ use App\FeuilleService;
 use App\Models\Clocher;
 use App\Models\FeuilleChant;
 use DateTimeImmutable;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\SvgWriter;
 
 final class FeuilleController
 {
@@ -56,17 +58,35 @@ final class FeuilleController
     public function create(): void
     {
         Auth::requireLogin();
-        $clocher = Clocher::findForParoisse((int) input('clocher_id', '0'), Auth::paroisseId());
+        $clocherId = $this->resoudreClocher(input('clocher_id'), Auth::paroisseId());
         $dateHeure = $this->parseDate(input('date_heure'));
 
-        if ($clocher === null || $dateHeure === null) {
-            flash('error', 'Clocher ou date invalide.');
+        if ($clocherId === null || $dateHeure === null) {
+            flash('error', 'Lieu ou date invalide.');
             redirect('/app/feuilles/nouveau');
         }
 
-        $id = FeuilleService::creer(Auth::id(), (int) $clocher['id'], $dateHeure);
+        $id = FeuilleService::creer(Auth::id(), $clocherId, $dateHeure);
         flash('success', 'Feuille créée. Complétez les chants.');
         redirect('/app/feuilles/' . $id);
+    }
+
+    /**
+     * Id du clocher choisi : un clocher enregistré, ou — pour « - Autres - » — un
+     * clocher ad hoc créé/retrouvé à partir du lieu saisi en texte libre (issue #8).
+     * Renvoie null si le choix est invalide.
+     */
+    private function resoudreClocher(?string $choix, int $paroisseId): ?int
+    {
+        if (trim((string) $choix) === 'autre') {
+            $lieu = trim((string) input('lieu', ''));
+
+            return $lieu === '' ? null : Clocher::trouverOuCreerAdHoc($paroisseId, $lieu);
+        }
+
+        $clocher = Clocher::findForParoisse((int) $choix, $paroisseId);
+
+        return $clocher !== null ? (int) $clocher['id'] : null;
     }
 
     public function copy(array $params): void
@@ -78,14 +98,14 @@ final class FeuilleController
             exit('Feuille introuvable.');
         }
 
-        $clocher = Clocher::findForParoisse((int) input('clocher_id', '0'), Auth::paroisseId());
+        $clocherId = $this->resoudreClocher(input('clocher_id'), Auth::paroisseId());
         $dateHeure = $this->parseDate(input('date_heure'));
-        if ($clocher === null || $dateHeure === null) {
-            flash('error', 'Clocher ou date invalide.');
+        if ($clocherId === null || $dateHeure === null) {
+            flash('error', 'Lieu ou date invalide.');
             redirect('/app');
         }
 
-        $id = FeuilleService::copier($source, Auth::id(), (int) $clocher['id'], $dateHeure);
+        $id = FeuilleService::copier($source, Auth::id(), $clocherId, $dateHeure);
         flash('success', 'Feuille copiée.');
         redirect('/app/feuilles/' . $id);
     }
@@ -104,8 +124,26 @@ final class FeuilleController
         }
 
         FeuilleChant::delete((int) $feuille['id']);
+        Clocher::supprimerAdHocSansFeuille((int) $feuille['clocher_id']);
         flash('success', 'Feuille supprimée.');
         redirect('/app');
+    }
+
+    /** QR code (SVG) pointant vers la page publique de la feuille — utile pour un lieu ponctuel. */
+    public function qrcode(array $params): void
+    {
+        Auth::requireLogin();
+        $feuille = FeuilleChant::findForParoisse((int) $params['id'], Auth::paroisseId());
+        if ($feuille === null) {
+            http_response_code(404);
+            exit('Feuille introuvable.');
+        }
+
+        $result = (new SvgWriter())->write(new QrCode(base_url(feuille_public_url($feuille))));
+
+        header('Content-Type: ' . $result->getMimeType());
+        header('Cache-Control: no-store');
+        echo $result->getString();
     }
 
     public function resync(array $params): void
