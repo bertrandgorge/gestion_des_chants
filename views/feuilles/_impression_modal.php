@@ -33,7 +33,10 @@ use App\SectionTypes;
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button class="btn btn-primary"><i class="bi bi-printer"></i> Générer la feuille</button>
+                <button class="btn btn-outline-primary" formaction="/app/feuilles/<?= $feuille['id'] ?>/word" formtarget="_self">
+                    <i class="bi bi-file-earmark-word"></i> Exporter en Word
+                </button>
+                <button class="btn btn-primary"><i class="bi bi-printer"></i> Imprimer</button>
             </div>
         </form>
     </div>

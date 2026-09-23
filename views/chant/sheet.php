@@ -24,7 +24,7 @@ $semaineAnnee = trim(($feuille['annee'] ? 'Année ' . $feuille['annee'] : '') . 
         </div>
         <div class="d-flex flex-column gap-2">
             <a class="btn btn-sm btn-outline-primary" target="_blank" href="<?= e(feuille_public_url($feuille)) ?>"><i class="bi bi-box-arrow-up-right"></i> Aperçu paroissien</a>
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#impressionModal"><i class="bi bi-printer"></i> Imprimer</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#impressionModal"><i class="bi bi-file-earmark-word"></i> Exporter en Word</button>
             <form method="post" action="/app/feuilles/<?= $feuille['id'] ?>/resync" onsubmit="return confirm('Recharger les lectures depuis AELF ? Les lectures modifiées seront écrasées.')">
                 <?= Csrf::field() ?>
                 <button class="btn btn-sm btn-outline-secondary w-100"><i class="bi bi-arrow-repeat"></i> Resynchroniser AELF</button>

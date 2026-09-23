@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Auth;
 use App\Database;
+use App\FeuilleWord;
 use App\Import\UrlImporter;
 use App\Models\Chant;
 use App\Models\Clocher;
@@ -38,15 +39,52 @@ final class ChantController
 
     /**
      * Feuille de chant prête à imprimer (deux colonnes, format A5 recto/verso).
-     * On mémorise la sélection de sections cochées au niveau de la paroisse
-     * pour préremplir l'impression des feuilles suivantes.
      */
     public function imprimer(array $params): void
     {
         Auth::requireLogin();
         $feuille = $this->ownFeuille((int) $params['id']);
-        $sections = Chant::forFeuille((int) $feuille['id']);
 
+        echo view('layout/impression', [
+            'content'  => view('impression/feuille', [
+                'feuille'  => $feuille,
+                'sections' => $this->sectionsAImprimer($feuille),
+            ]),
+            'pageTitle' => 'Feuille de chant — ' . format_date_fr($feuille['date_heure'], false),
+        ]);
+    }
+
+    /**
+     * Même sélection que l'impression, exportée en Word (.docx) : titres sur
+     * toute la largeur, texte des chants sur deux colonnes équilibrées.
+     */
+    public function word(array $params): void
+    {
+        Auth::requireLogin();
+        $feuille = $this->ownFeuille((int) $params['id']);
+        $docx = FeuilleWord::generer($this->sectionsAImprimer($feuille));
+
+        $date = new \DateTimeImmutable($feuille['date_heure']);
+        // « Feuille du dimanche 2026-09-27 » : format_date_fr() commence par le jour.
+        $nom = 'Feuille du ' . explode(' ', format_date_fr($feuille['date_heure'], false))[0]
+            . ' ' . $date->format('Y-m-d');
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        header('Content-Disposition: attachment; filename="' . slugify($nom) . '.docx"; filename*=UTF-8\'\'' . rawurlencode($nom . '.docx'));
+        header('Content-Length: ' . strlen($docx));
+        echo $docx;
+    }
+
+    /**
+     * Sections cochées dans la modale d'impression, non vides. On mémorise la
+     * sélection au niveau de la paroisse pour préremplir l'impression des
+     * feuilles suivantes.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    private function sectionsAImprimer(array $feuille): array
+    {
+        $sections = Chant::forFeuille((int) $feuille['id']);
         $coches = array_map('intval', (array) ($_POST['sections'] ?? []));
 
         // Préférence paroisse : on met à jour les types présents sur cette feuille.
@@ -57,21 +95,13 @@ final class ChantController
         Paroisse::enregistrerImpressionSections(Auth::paroisseId(), $prefs);
 
         // Sections cochées et non vides (même filtre que la feuille des paroissiens).
-        $aImprimer = array_values(array_filter(
+        return array_values(array_filter(
             $sections,
             static fn ($s) => in_array((int) $s['id'], $coches, true)
                 && (trim((string) $s['chant']) !== ''
                     || trim((string) $s['contenu']) !== ''
                     || trim((string) $s['titre']) !== '')
         ));
-
-        echo view('layout/impression', [
-            'content'  => view('impression/feuille', [
-                'feuille'  => $feuille,
-                'sections' => $aImprimer,
-            ]),
-            'pageTitle' => 'Feuille de chant — ' . format_date_fr($feuille['date_heure'], false),
-        ]);
     }
 
     /** AJAX : add / remove / reorder. */
